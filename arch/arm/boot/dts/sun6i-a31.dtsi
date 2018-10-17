@@ -1405,6 +1405,12 @@
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
+			/omit-if-no-ref/
+			clk_out_d_pin: clk-out-d-pin {
+				pins = "PM7";
+				function = "rtc";
+			};
+
 			s_ir_rx_pin: s-ir-rx-pin {
 				pins = "PL4";
 				function = "s_ir";
