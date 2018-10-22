@@ -319,6 +319,22 @@
 	status = "okay";
 };
 
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins>, <&uart2_rts_cts_pins>, <&clk_out_d_pin>;
+	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm20702a1";
+		vbat-supply = <&reg_aldo1>;
+		vddio-supply = <&reg_aldo1>;
+		device-wakeup-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
+		host-wakeup-gpios = <&r_pio 0 6 GPIO_ACTIVE_LOW>; /* PL6 */
+		shutdown-gpios = <&r_pio 0 8 GPIO_ACTIVE_HIGH>; /* PL8 */
+		max-speed = <1500000>;
+	};
+};
+
 &usb_otg {
 	dr_mode = "otg";
 	status = "okay";
