@@ -911,6 +911,12 @@
 			};
 
 			/omit-if-no-ref/
+			i2s0_pins: i2s0-pins {
+				pins = "PB6", "PB7", "PB8", "PB12";
+				function = "i2s0";
+			};
+
+			/omit-if-no-ref/
 			ir0_rx_pin: ir0-rx-pin {
 				pins = "PB4";
 				function = "ir0";
@@ -1268,6 +1274,8 @@
 			dmas = <&dma SUN4I_DMA_NORMAL 3>,
 			       <&dma SUN4I_DMA_NORMAL 3>;
 			dma-names = "rx", "tx";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2s0_pins>;
 			status = "disabled";
 		};
 

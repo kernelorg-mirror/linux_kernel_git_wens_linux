@@ -116,6 +116,24 @@
 		};
 	};
 
+	sound-bluetooth {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "Bluetooth SCO";
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s0>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&bt_sco_codec 1>;
+		};
+	};
+
+	bt_sco_codec: bluetooth-sco-codec {
+		#sound-dai-cells = <1>;
+		compatible = "linux,bt-sco";
+	};
+
 	spdif_out: spdif-out {
 		#sound-dai-cells = <0>;
 		compatible = "linux,spdif-dit";
@@ -181,6 +199,10 @@
 };
 
 &i2c2 {
+	status = "okay";
+};
+
+&i2s0 {
 	status = "okay";
 };
 
