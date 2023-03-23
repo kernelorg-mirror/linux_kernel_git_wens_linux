@@ -81,6 +81,8 @@ properties:
       - boe,ev121wxm-n10-1850
         # BOE HV070WSA-100 7.01" WSVGA TFT LCD panel
       - boe,hv070wsa-100
+        # BOE NE135FBM-N41 13.3" 2K (2256x1504) TFT LCD Panel
+      - boe,ne135fbm-n41
         # BOE OPTOELECTRONICS TECHNOLOGY 10.1" WXGA TFT LCD panel
       - boe,nv101wxmn51
         # BOE NV133FHM-N61 13.3" FHD (1920x1080) TFT LCD Panel
