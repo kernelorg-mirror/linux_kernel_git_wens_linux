@@ -77,6 +77,8 @@ properties:
       - boe,ev121wxm-n10-1850
         # BOE HV070WSA-100 7.01" WSVGA TFT LCD panel
       - boe,hv070wsa-100
+        # BOE NE135FBM-N41 13.3" 2K (2256x1504) TFT LCD Panel
+      - boe,ne135fbm-n41
         # Crystal Clear Technology CMT430B19N00 4.3" 480x272 TFT-LCD panel
       - cct,cmt430b19n00
         # CDTech(H.K.) Electronics Limited 4.3" 480x272 color TFT-LCD panel
