@@ -1248,6 +1248,47 @@ static const struct panel_desc boe_nv133fhm_n61 = {
 	},
 };
 
+static const struct drm_display_mode boe_ne135fbm_n41_modes[] = {
+	{
+		.clock = 235690,
+		.hdisplay = 2256,
+		.hsync_start = 2256 + 48,
+		.hsync_end = 2256 + 48 + 32,
+		.htotal = 2256 + 48 + 32 + 200,
+		.vdisplay = 1504,
+		.vsync_start = 1504 + 3,
+		.vsync_end = 1504 + 3 + 6,
+		.vtotal = 1504 + 3 + 6 + 31,
+		.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC,
+	}, {
+		.clock = 188550,
+		.hdisplay = 2256,
+		.hsync_start = 2256 + 48,
+		.hsync_end = 2256 + 48 + 32,
+		.htotal = 2256 + 48 + 32 + 200,
+		.vdisplay = 1504,
+		.vsync_start = 1504 + 3,
+		.vsync_end = 1504 + 3 + 6,
+		.vtotal = 1504 + 3 + 6 + 31,
+		.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC,
+	},
+};
+
+static const struct panel_desc boe_ne135fbm_n41 = {
+	.modes = boe_ne135fbm_n41_modes,
+	.num_modes = ARRAY_SIZE(boe_ne135fbm_n41_modes),
+	.bpc = 8,
+	.size = {
+		.width = 285,
+		.height = 190,
+	},
+	.delay = {
+		.hpd_absent = 200,
+		.enable = 50,
+		.unprepare = 500,
+	},
+};
+
 static const struct drm_display_mode boe_nv140fhmn49_modes[] = {
 	{
 		.clock = 148500,
@@ -1694,6 +1735,9 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "auo,b133xtn01",
 		.data = &auo_b133xtn01,
 	}, {
+		.compatible = "boe,ne135fbm-n41",
+		.data = &boe_ne135fbm_n41,
+	}, {
 		.compatible = "boe,nv101wxmn51",
 		.data = &boe_nv101wxmn51,
 	}, {
@@ -2037,6 +2081,7 @@ static const struct edp_panel_entry edp_panels[] = {
 	EDP_PANEL_ENTRY('B', 'O', 'E', 0x08b2, &delay_200_500_e200, "NT140WHM-N49"),
 	EDP_PANEL_ENTRY('B', 'O', 'E', 0x0848, &delay_200_500_e200, "Unknown"),
 	EDP_PANEL_ENTRY('B', 'O', 'E', 0x0849, &delay_200_500_e200, "Unknown"),
+	EDP_PANEL_ENTRY('B', 'O', 'E', 0x08bc, &boe_ne135fbm_n41.delay, "NE135FBM-N41 v8.0"),
 	EDP_PANEL_ENTRY('B', 'O', 'E', 0x090d, &delay_200_500_e50, "NT140WHM-N4T"),
 	EDP_PANEL_ENTRY('B', 'O', 'E', 0x09c3, &delay_200_500_e50, "NT116WHM-N21,836X2"),
 	EDP_PANEL_ENTRY('B', 'O', 'E', 0x094b, &delay_200_500_e50, "NT116WHM-N21"),
