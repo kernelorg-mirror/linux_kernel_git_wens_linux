@@ -64,7 +64,8 @@ static const struct mtk_auxadc_compatible mt6765_compat = {
 		.type = IIO_VOLTAGE,				    \
 		.indexed = 1,					    \
 		.channel = (idx),				    \
-		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED), \
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |	    \
+				      BIT(IIO_CHAN_INFO_SCALE), \
 }
 
 static const struct iio_chan_spec mt6577_auxadc_iio_channels[] = {
@@ -85,10 +86,6 @@ static const struct iio_chan_spec mt6577_auxadc_iio_channels[] = {
 	MT6577_AUXADC_CHANNEL(14),
 	MT6577_AUXADC_CHANNEL(15),
 };
-
-/* For Voltage calculation */
-#define VOLTAGE_FULL_RANGE  1500	/* VA voltage */
-#define AUXADC_PRECISE      4096	/* 12 bits */
 
 static int mt_auxadc_get_cali_data(int rawdata, bool enable_cali)
 {
@@ -180,6 +177,10 @@ err_timeout:
 	return -ETIMEDOUT;
 }
 
+/* For Voltage calculation */
+#define VOLTAGE_FULL_RANGE	1500	/* VA voltage */
+#define AUXADC_BITS		12	/* ADC precision */
+
 static int mt6577_auxadc_read_raw(struct iio_dev *indio_dev,
 				  struct iio_chan_spec const *chan,
 				  int *val,
@@ -189,7 +190,7 @@ static int mt6577_auxadc_read_raw(struct iio_dev *indio_dev,
 	struct mt6577_auxadc_device *adc_dev = iio_priv(indio_dev);
 
 	switch (info) {
-	case IIO_CHAN_INFO_PROCESSED:
+	case IIO_CHAN_INFO_RAW:
 		*val = mt6577_auxadc_read(indio_dev, chan);
 		if (*val < 0) {
 			dev_err(indio_dev->dev.parent,
@@ -200,10 +201,13 @@ static int mt6577_auxadc_read_raw(struct iio_dev *indio_dev,
 		if (adc_dev->dev_comp->sample_data_cali)
 			*val = mt_auxadc_get_cali_data(*val, true);
 
-		/* Convert adc raw data to voltage: 0 - 1500 mV */
-		*val = *val * VOLTAGE_FULL_RANGE / AUXADC_PRECISE;
-
 		return IIO_VAL_INT;
+
+	case IIO_CHAN_INFO_SCALE:
+		/* ADC reading scales to voltage: 0 - 1500 mV */
+		*val = VOLTAGE_FULL_RANGE;
+		*val2 = AUXADC_BITS;
+		return IIO_VAL_FRACTIONAL_LOG2;
 
 	default:
 		return -EINVAL;
