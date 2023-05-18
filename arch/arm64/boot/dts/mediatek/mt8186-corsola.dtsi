@@ -361,8 +361,7 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&dpi_pins_default>;
 	pinctrl-1 = <&dpi_pins_sleep>;
-	/* TODO Re-enable after DP to Type-C port muxing can be described */
-	status = "disabled";
+	status = "okay";
 };
 
 &dpi_out {
@@ -447,6 +446,22 @@
 
 			port@1 {
 				reg = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ite_typec0: endpoint@0 {
+					reg = <0>;
+					mode-switch;
+					data-lanes = <0 1>;
+					remote-endpoint = <&typec_port0>;
+				};
+
+				ite_typec1: endpoint@1 {
+					reg = <1>;
+					mode-switch;
+					data-lanes = <3 2>;
+					remote-endpoint = <&typec_port1>;
+				};
 			};
 		};
 	};
@@ -1651,6 +1666,17 @@
 				power-role = "dual";
 				data-role = "host";
 				try-power-role = "source";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@1 {
+						reg = <1>;
+
+						typec_port0: endpoint { };
+					};
+				};
 			};
 
 			usb_c1: connector@1 {
@@ -1660,6 +1686,17 @@
 				power-role = "dual";
 				data-role = "host";
 				try-power-role = "source";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@1 {
+						reg = <1>;
+
+						typec_port1: endpoint { };
+					};
+				};
 			};
 		};
 
@@ -1693,6 +1730,14 @@
 
 &ssusb1 {
 	status = "okay";
+};
+
+&typec_port0 {
+	remote-endpoint = <&ite_typec0>;
+};
+
+&typec_port1 {
+	remote-endpoint = <&ite_typec1>;
 };
 
 &u3phy0 {
