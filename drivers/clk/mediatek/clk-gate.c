@@ -279,6 +279,11 @@ int mtk_clk_register_gates(struct device *dev, struct device_node *node,
 	for (i = 0; i < num; i++) {
 		const struct mtk_gate *gate = &clks[i];
 
+		if (WARN(gate->id >= clk_data->num,
+			 "%pOF: gateclock ID (%d)larger than expected (%d)\n",
+			 node, gate->id, clk_data->num))
+			continue;
+
 		if (!IS_ERR_OR_NULL(clk_data->hws[gate->id])) {
 			pr_warn("%pOF: Trying to register duplicate clock ID: %d\n",
 				node, gate->id);
@@ -302,6 +307,9 @@ err:
 	while (--i >= 0) {
 		const struct mtk_gate *gate = &clks[i];
 
+		if (gate->id >= clk_data->num)
+			continue;
+
 		if (IS_ERR_OR_NULL(clk_data->hws[gate->id]))
 			continue;
 
@@ -323,6 +331,9 @@ void mtk_clk_unregister_gates(const struct mtk_gate *clks, int num,
 
 	for (i = num; i > 0; i--) {
 		const struct mtk_gate *gate = &clks[i - 1];
+
+		if (gate->id >= clk_data->num)
+			continue;
 
 		if (IS_ERR_OR_NULL(clk_data->hws[gate->id]))
 			continue;
