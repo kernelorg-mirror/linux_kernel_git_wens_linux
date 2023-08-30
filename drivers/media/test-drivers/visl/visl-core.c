@@ -51,6 +51,10 @@
 #include "visl-debugfs.h"
 #include "visl-video.h"
 
+bool visl_frame_based;
+module_param_named(frame_based, visl_frame_based, bool, 0644);
+MODULE_PARM_DESC(frame_based, " forces H.26[45] frame-based decoding on newly opened instances.");
+
 unsigned int visl_debug;
 module_param(visl_debug, uint, 0644);
 MODULE_PARM_DESC(visl_debug, " activates debug info");
@@ -295,8 +299,23 @@ static int visl_init_ctrls(struct visl_ctx *ctx)
 
 	for (i = 0; i < num_coded_fmts; i++) {
 		ctrls = visl_coded_fmts[i].ctrls;
-		for (j = 0; j < ctrls->num_ctrls; j++)
-			v4l2_ctrl_new_custom(hdl, &ctrls->ctrls[j].cfg, NULL);
+		for (j = 0; j < ctrls->num_ctrls; j++) {
+			if (visl_frame_based &&
+			    ctrls->ctrls[j].cfg.id == V4L2_CID_STATELESS_H264_DECODE_MODE) {
+				struct v4l2_ctrl_config cfg = ctrls->ctrls[j].cfg;
+				cfg.def = V4L2_STATELESS_H264_DECODE_MODE_FRAME_BASED;
+				cfg.min = cfg.max = cfg.def;
+				v4l2_ctrl_new_custom(hdl, &cfg, NULL);
+			} else if (visl_frame_based &&
+				   ctrls->ctrls[j].cfg.id == V4L2_CID_STATELESS_HEVC_DECODE_MODE) {
+				struct v4l2_ctrl_config cfg = ctrls->ctrls[j].cfg;
+				cfg.def = V4L2_STATELESS_HEVC_DECODE_MODE_FRAME_BASED;
+				cfg.min = cfg.max = cfg.def;
+				v4l2_ctrl_new_custom(hdl, &cfg, NULL);
+			} else {
+				v4l2_ctrl_new_custom(hdl, &ctrls->ctrls[j].cfg, NULL);
+			}
+		}
 	}
 
 	if (hdl->error) {
