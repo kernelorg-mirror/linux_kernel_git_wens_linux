@@ -38,6 +38,18 @@ properties:
           0xc0389481 that resides in the topmost 8 bytes of the area.
 
           See coreboot's src/include/imd.h for details.
+  board-id:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Contains the board revision number.
+  ram-code:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Contains the board's DRAM configuration type.
+  sku-id:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Contains the device variant SKU ID.
+  fw-config:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Contains the device variant FW config value.
 
 required:
   - compatible
