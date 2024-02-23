@@ -52,6 +52,7 @@
 *.xz
 *.zst
 Module.symvers
+dtbs-components
 dtbs-list
 modules.order
 

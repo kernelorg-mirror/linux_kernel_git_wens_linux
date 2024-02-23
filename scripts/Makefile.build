@@ -72,6 +72,7 @@ endif
 subdir-builtin := $(sort $(filter %/built-in.a, $(real-obj-y)))
 subdir-modorder := $(sort $(filter %/modules.order, $(obj-m)))
 subdir-dtbslist := $(sort $(filter %/dtbs-list, $(dtb-y)))
+subdir-dtbscomp := $(sort $(filter %/dtbs-components, $(multi-dtb-y)))
 
 targets-for-builtin := $(extra-y)
 
@@ -390,6 +391,7 @@ $(obj)/%.asn1.c $(obj)/%.asn1.h: $(src)/%.asn1 $(objtree)/scripts/asn1_compiler
 $(subdir-builtin): $(obj)/%/built-in.a: $(obj)/% ;
 $(subdir-modorder): $(obj)/%/modules.order: $(obj)/% ;
 $(subdir-dtbslist): $(obj)/%/dtbs-list: $(obj)/% ;
+$(subdir-dtbscomp): $(obj)/%/dtbs-components: $(obj)/% ;
 
 #
 # Rule to compile a set of .o files into one .a file (without symbol table)
@@ -421,6 +423,20 @@ $(obj)/modules.order: $(obj-m) FORCE
 
 $(obj)/dtbs-list: $(dtb-y) FORCE
 	$(call if_changed,gen_order)
+
+#
+# Rule to create dtbs-components
+#
+# This is a list of composite dtb(s), along with each dtb's components,
+# from the current Makefile and its sub-directories.
+
+cmd_gen_dtb_components = { $(foreach m, $(real-prereqs), \
+		$(if $(filter %/$(notdir $@), $m), cat $m, \
+			echo $m: $(addprefix $(obj)/,$($(notdir $(m:%.dtb=%-dtbs))))); \
+	) :; } > $@
+
+$(obj)/dtbs-components: $(multi-dtb-y) FORCE
+	$(call if_changed,gen_dtb_components)
 
 #
 # Rule to compile a set of .o files into one .a file (with symbol table)
