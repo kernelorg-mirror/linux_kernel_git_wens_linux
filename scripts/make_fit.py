@@ -26,6 +26,10 @@ the entire FIT.
 Use -c to compress the data, using bzip2, gzip, lz4, lzma, lzo and
 zstd algorithms.
 
+Use -C to disable compression for DTBs regardless of the setting of '-c'.
+This is intended for old bootloaders that support compression of the
+kernel image but not the devicetree blobs.
+
 Use -D to decompose "composite" DTBs into their base components and
 deduplicate the resulting base DTBs and DTB overlays. This requires the
 DTBs to be sourced from the kernel build directory, as the implementation
@@ -73,6 +77,8 @@ def parse_args():
           help='Specifies the architecture')
     parser.add_argument('-c', '--compress', type=str, default='none',
           help='Specifies the compression')
+    parser.add_argument('-C', '--no-dtb-compression', action='store_true',
+                        help='Disables compression for included DTBs')
     parser.add_argument('-D', '--decompose-dtbs', action='store_true',
           help='Decompose composite DTBs into base DTB and overlays')
     parser.add_argument('-E', '--external', action='store_true',
@@ -342,7 +348,7 @@ def _process_dtbs(args, fsw, entries, fdts):
 
     # Compress all DTBs in parallel
     cache = {}
-    if todo and args.compress != 'none':
+    if todo and args.compress != 'none' and not args.no_dtb_compression:
         if args.verbose:
             print(f'Compressing {len(todo)} DTBs...')
 
