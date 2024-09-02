@@ -800,7 +800,7 @@ static bool of_coupling_find_node(struct device_node *src,
  * - all coupled regulators have the same number of regulator_dev phandles
  * - all regulators are linked to each other
  *
- * Return: True if all conditions are met; false otherwise.
+ * Return: %true if all conditions are met; %false otherwise.
  */
 bool of_check_coupling_data(struct regulator_dev *rdev)
 {
