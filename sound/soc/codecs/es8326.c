@@ -34,8 +34,6 @@ struct es8326_priv {
 	u8 jack_pol;
 	u8 interrupt_src;
 	u8 interrupt_clk;
-	u8 hpl_vol;
-	u8 hpr_vol;
 	bool jd_inverted;
 	unsigned int sysclk;
 
@@ -121,71 +119,16 @@ static int es8326_crosstalk2_set(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int es8326_hplvol_get(struct snd_kcontrol *kcontrol,
-		struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct es8326_priv *es8326 = snd_soc_component_get_drvdata(component);
+static const char * const hp_gain_text[] = {
+	"0dB", "-6dB", "-24dB", "+3.5dB", "-3.5dB", "-18dB"
+};
 
-	ucontrol->value.integer.value[0] = es8326->hpl_vol;
+static const unsigned int hp_gain_values[] = {
+	0, 1, 2, 4, 5, 6
+};
 
-	return 0;
-}
-
-static int es8326_hplvol_set(struct snd_kcontrol *kcontrol,
-		struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct es8326_priv *es8326 = snd_soc_component_get_drvdata(component);
-	unsigned int hp_vol;
-
-	hp_vol = ucontrol->value.integer.value[0];
-	if (hp_vol > 5)
-		return -EINVAL;
-	if (es8326->hpl_vol != hp_vol) {
-		es8326->hpl_vol = hp_vol;
-		if (hp_vol >= 3)
-			hp_vol++;
-		regmap_update_bits(es8326->regmap, ES8326_HP_VOL,
-				0x70, (hp_vol << 4));
-		return 1;
-	}
-
-	return 0;
-}
-
-static int es8326_hprvol_get(struct snd_kcontrol *kcontrol,
-		struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct es8326_priv *es8326 = snd_soc_component_get_drvdata(component);
-
-	ucontrol->value.integer.value[0] = es8326->hpr_vol;
-
-	return 0;
-}
-
-static int es8326_hprvol_set(struct snd_kcontrol *kcontrol,
-		struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct es8326_priv *es8326 = snd_soc_component_get_drvdata(component);
-	unsigned int hp_vol;
-
-	hp_vol = ucontrol->value.integer.value[0];
-	if (hp_vol > 5)
-		return -EINVAL;
-	if (es8326->hpr_vol != hp_vol) {
-		es8326->hpr_vol = hp_vol;
-		if (hp_vol >= 3)
-			hp_vol++;
-		regmap_update_bits(es8326->regmap, ES8326_HP_VOL,
-				0x07, hp_vol);
-		return 1;
-	}
-
-	return 0;
-}
+static SOC_VALUE_ENUM_DOUBLE_DECL(hp_gain_enum, ES8326_HP_VOL, 4, 0, 0x7,
+				  hp_gain_text, hp_gain_values);
 
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(dac_vol_tlv, -9550, 50, 0);
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(adc_vol_tlv, -9550, 50, 0);
@@ -272,10 +215,7 @@ static const struct snd_kcontrol_new es8326_snd_controls[] = {
 			es8326_crosstalk1_get, es8326_crosstalk1_set),
 	SOC_SINGLE_EXT("CROSSTALK2", SND_SOC_NOPM, 0, 31, 0,
 			es8326_crosstalk2_get, es8326_crosstalk2_set),
-	SOC_SINGLE_EXT("HPL Volume", SND_SOC_NOPM, 0, 5, 0,
-			es8326_hplvol_get, es8326_hplvol_set),
-	SOC_SINGLE_EXT("HPR Volume", SND_SOC_NOPM, 0, 5, 0,
-			es8326_hprvol_get, es8326_hprvol_set),
+	SOC_ENUM("HP Gain Playback Volume", hp_gain_enum),
 
 	SOC_SINGLE_TLV("HPL Playback Volume", ES8326_DACL_VOL, 0, 0xbf, 0, dac_vol_tlv),
 	SOC_SINGLE_TLV("HPR Playback Volume", ES8326_DACR_VOL, 0, 0xbf, 0, dac_vol_tlv),
@@ -1289,8 +1229,6 @@ static int es8326_i2c_probe(struct i2c_client *i2c)
 	es8326->irq = i2c->irq;
 	es8326->jack_remove_retry = 0;
 	es8326->hp = 0;
-	es8326->hpl_vol = 0x03;
-	es8326->hpr_vol = 0x03;
 	INIT_DELAYED_WORK(&es8326->jack_detect_work,
 			  es8326_jack_detect_handler);
 	INIT_DELAYED_WORK(&es8326->button_press_work,
