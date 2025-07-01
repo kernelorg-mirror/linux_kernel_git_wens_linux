@@ -1250,6 +1250,20 @@
 			};
 		};
 
+		npu-thermal {
+			polling-delay-passive = <500>;
+			polling-delay = <1000>;
+			thermal-sensors = <&ths1 3>;
+
+			trips {
+				npu_temp_critical: npu-trip-0 {
+					temperature = <110000>;
+					type = "critical";
+					hysteresis = <0>;
+				};
+			};
+		};
+
 		ddr-thermal {
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
