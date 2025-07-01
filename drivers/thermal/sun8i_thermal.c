@@ -842,7 +842,7 @@ static const struct ths_thermal_chip sun55i_a523_ths0 = {
 };
 
 static const struct ths_thermal_chip sun55i_a523_ths1 = {
-	.sensor_num = 3,
+	.sensor_num = 4,
 	.has_bus_clk_reset = true,
 	.has_mod_clk = true,
 	.ft_deviation = 5000,
