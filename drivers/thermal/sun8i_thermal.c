@@ -366,6 +366,9 @@ static int sun55i_a523_ths_calibrate(struct ths_device *tmdev,
 			case 2:
 				sensor_reg = caldata[4] & TEMP_CALIB_MASK;
 				break;
+			case 3:
+				sensor_reg = ((caldata[4] >> 12) | (caldata[5] << 4)) & TEMP_CALIB_MASK;
+				break;
 			default:
 				sensor_reg = 0;
 				break;
@@ -841,7 +844,7 @@ static const struct ths_thermal_chip sun55i_a523_ths0 = {
 };
 
 static const struct ths_thermal_chip sun55i_a523_ths1 = {
-	.sensor_num = 3,
+	.sensor_num = 4,
 	.has_bus_clk_reset = true,
 	.has_mod_clk = true,
 	.ft_deviation = 5000,
