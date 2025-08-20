@@ -73,6 +73,7 @@
 #define SDXC_REG_DRV_DL		0x140 /* Drive Delay Control Register */
 #define SDXC_REG_SAMP_DL_REG	0x144 /* SMC sample delay control */
 #define SDXC_REG_DS_DL_REG	0x148 /* SMC data strobe delay control */
+#define SDXC_REG_VER_SMCV	0x300 /* SMC hardware version */
 
 #define mmc_readl(host, reg) \
 	readl((host)->reg_base + SDXC_##reg)
@@ -213,6 +214,8 @@
 #define SDXC_IDMAC_DES0_ER	BIT(5)  /* end of ring */
 #define SDXC_IDMAC_DES0_CES	BIT(30) /* card error summary */
 #define SDXC_IDMAC_DES0_OWN	BIT(31) /* 1-idma owns it, 0-host owns it */
+
+#define SDXC_VER_MASK		0xffffff
 
 #define SDXC_CLK_400K		0
 #define SDXC_CLK_25M		1
@@ -700,25 +703,6 @@ static int sunxi_mmc_oclk_onoff(struct sunxi_mmc_host *host, u32 oclk_en)
 	return 0;
 }
 
-static int sunxi_mmc_calibrate(struct sunxi_mmc_host *host, int reg_off)
-{
-	if (!host->cfg->can_calibrate)
-		return 0;
-
-	/*
-	 * FIXME:
-	 * This is not clear how the calibration is supposed to work
-	 * yet. The best rate have been obtained by simply setting the
-	 * delay to 0, as Allwinner does in its BSP.
-	 *
-	 * The only mode that doesn't have such a delay is HS400, that
-	 * is in itself a TODO.
-	 */
-	writel(SDXC_CAL_DL_SW_EN, host->reg_base + reg_off);
-
-	return 0;
-}
-
 static int sunxi_mmc_clk_set_phase(struct sunxi_mmc_host *host,
 				   struct mmc_ios *ios, u32 rate)
 {
@@ -841,10 +825,6 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 
 	/* sunxi_mmc_clk_set_phase expects the actual card clock rate */
 	ret = sunxi_mmc_clk_set_phase(host, ios, rate);
-	if (ret)
-		return ret;
-
-	ret = sunxi_mmc_calibrate(host, SDXC_REG_SAMP_DL_REG);
 	if (ret)
 		return ret;
 
@@ -1109,6 +1089,74 @@ static int sunxi_mmc_card_busy(struct mmc_host *mmc)
 	return !!(mmc_readl(host, REG_STAS) & SDXC_CARD_DATA_BUSY);
 }
 
+#define NUM_TUNING_DELAYS (SDXC_CAL_DL_MASK + 1)
+
+struct range_t {
+	int start;
+	int end; /* inclusive */
+};
+
+#if 0
+	struct range_t *ranges;
+	unsigned int range_count = 0;
+	int longest_range_len = -1;
+	int longest_range = -1;
+	int middle_phase;
+	int phase;
+
+static int sunxi_mmc_calibrate(struct sunxi_mmc_host *host, int reg_off)
+{
+	if (!host->cfg->can_calibrate)
+		return 0;
+
+	/*
+	 * FIXME:
+	 * This is not clear how the calibration is supposed to work
+	 * yet. The best rate have been obtained by simply setting the
+	 * delay to 0, as Allwinner does in its BSP.
+	 *
+	 * The only mode that doesn't have such a delay is HS400, that
+	 * is in itself a TODO.
+	 */
+	writel(SDXC_CAL_DL_SW_EN, host->reg_base + reg_off);
+
+	return 0;
+}
+
+	ret = sunxi_mmc_calibrate(host, SDXC_REG_SAMP_DL_REG);
+	if (ret)
+		return ret;
+#endif
+
+static int sunxi_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
+{
+	struct sunxi_mmc_host *host = mmc_priv(mmc);
+	unsigned int i;
+	int err;
+
+	if (!host->cfg->can_calibrate)
+		return 0;
+
+	/* Try each value and extract good ranges */
+	for (i = 0; i <= SDXC_CAL_DL_MASK; i++) {
+		dev_info(host->dev, "Trying sample delay: %d\n", i);
+		mmc_writel(host, REG_SAMP_DL_REG, SDXC_CAL_DL_SW_EN | i);
+
+		err = mmc_send_tuning(mmc, opcode, NULL);
+		if (!err)
+			break;
+	}
+
+	if (i > SDXC_CAL_DL_MASK) {
+		dev_err(host->dev, "no valid sample phase found\n");
+		return -EIO;
+	}
+
+	dev_info(host->dev, "Successfully tuned sample delay to %d\n", i);
+
+	return 0;
+}
+
 static const struct mmc_host_ops sunxi_mmc_ops = {
 	.request	 = sunxi_mmc_request,
 	.set_ios	 = sunxi_mmc_set_ios,
@@ -1118,6 +1166,7 @@ static const struct mmc_host_ops sunxi_mmc_ops = {
 	.start_signal_voltage_switch = sunxi_mmc_volt_switch,
 	.card_hw_reset	 = sunxi_mmc_hw_reset,
 	.card_busy	 = sunxi_mmc_card_busy,
+	.execute_tuning  = sunxi_mmc_execute_tuning,
 };
 
 static const struct sunxi_mmc_clk_delay sunxi_mmc_clk_delays[] = {
@@ -1367,6 +1416,7 @@ static int sunxi_mmc_probe(struct platform_device *pdev)
 {
 	struct sunxi_mmc_host *host;
 	struct mmc_host *mmc;
+	u32 val;
 	int ret;
 
 	mmc = devm_mmc_alloc_host(&pdev->dev, sizeof(*host));
@@ -1460,6 +1510,13 @@ static int sunxi_mmc_probe(struct platform_device *pdev)
 	ret = sunxi_mmc_init_host(host);
 	if (ret)
 		goto error_free_dma;
+
+	val = mmc_readl(host, REG_VER_SMCV) & SDXC_VER_MASK;
+	if (val)
+		dev_info(&pdev->dev, "host version: %lu.%lu.%lu\n",
+			FIELD_GET(GENMASK(23, 16), val),
+			FIELD_GET(GENMASK(15, 8), val),
+			FIELD_GET(GENMASK(7, 0), val));
 
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
