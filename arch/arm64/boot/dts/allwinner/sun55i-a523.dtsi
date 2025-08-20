@@ -146,6 +146,14 @@
 			#interrupt-cells = <3>;
 
 			/omit-if-no-ref/
+			i2c1_pb_pins: i2c1-pb-pins {
+				pins = "PB4" ,"PB5";
+				allwinner,pinmux = <2>;
+				function = "i2c1";
+				bias-pull-up;
+			};
+
+			/omit-if-no-ref/
 			i2s2_pi_pins: i2s2-pi-pins {
 				pins = "PI2", "PI3", "PI4", "PI5";
 				allwinner,pinmux = <5>;
