@@ -103,6 +103,13 @@
 	status = "okay";
 };
 
+/* Found on 40-pin header in RPi standard I2C location (pins 5 & 7) */
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pb_pins>;
+	status = "disabled";
+};
+
 &mdio0 {
 	ext_rgmii0_phy: ethernet-phy@1 {
 		compatible = "ethernet-phy-ieee802.3-c22";
