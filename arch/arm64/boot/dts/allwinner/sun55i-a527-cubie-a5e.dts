@@ -15,6 +15,8 @@
 	aliases {
 		ethernet0 = &gmac0;
 		ethernet1 = &gmac1;
+		/* internal RTC is not battery backed */
+		rtc1 = &rtc;
 		serial0 = &uart0;
 	};
 
