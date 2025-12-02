@@ -6,6 +6,7 @@
  */
 
 #include <linux/array_size.h>
+#include <linux/cleanup.h>
 #include <linux/errno.h>
 #include <linux/i2c-of-prober.h>
 #include <linux/module.h>
@@ -118,12 +119,47 @@ static const struct hw_prober_entry hw_prober_platforms[] = {
 	},
 };
 
+/**
+ * chromeos_of_machine_has_prefix - check machine compatible for base match
+ *
+ * Checks whether the machine compatible string is equal to the base or has
+ * the base + "-" as its starting portion. This follows the compatible scheme
+ * documented in Documentation/arch/arm/google/chromebook-boot-flow.rst
+ * where only the latest revision should have the "SKU-less revision-less"
+ * device compatible string.
+ *
+ * @base: base string to check for
+ * Returns: true on match, false on no match
+ */
+static bool chromeos_of_machine_has_prefix(const char *base)
+{
+	struct device_node *root __free(device_node) = of_find_node_by_path("/");
+	const struct property *prop;
+	const char *cp;
+	int len;
+
+	if (!base)
+		return false;
+	if (!root)
+		return false;
+
+	len = strlen(base);
+	of_property_for_each_string(root, "compatible", prop, cp) {
+		if (of_compat_cmp(cp, base, len) != 0)
+			continue;
+		if (cp[len] == '\0' || cp[len] == '-')
+			return true;
+	}
+
+	return false;
+}
+
 static int chromeos_of_hw_prober_probe(struct platform_device *pdev)
 {
 	for (size_t i = 0; i < ARRAY_SIZE(hw_prober_platforms); i++) {
 		int ret;
 
-		if (!of_machine_is_compatible(hw_prober_platforms[i].compatible))
+		if (!chromeos_of_machine_has_prefix(hw_prober_platforms[i].compatible))
 			continue;
 
 		ret = hw_prober_platforms[i].prober(&pdev->dev, hw_prober_platforms[i].data);
@@ -150,7 +186,7 @@ static int chromeos_of_hw_prober_driver_init(void)
 	int ret;
 
 	for (i = 0; i < ARRAY_SIZE(hw_prober_platforms); i++)
-		if (of_machine_is_compatible(hw_prober_platforms[i].compatible))
+		if (chromeos_of_machine_has_prefix(hw_prober_platforms[i].compatible))
 			break;
 	if (i == ARRAY_SIZE(hw_prober_platforms))
 		return -ENODEV;
