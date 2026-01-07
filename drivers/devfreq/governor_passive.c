@@ -130,7 +130,7 @@ static int get_target_freq_with_cpufreq(struct devfreq *devfreq,
 					parent_cpu_data->opp_table,
 					devfreq->opp_table, &cpu_cur);
 		if (freq) {
-			*target_freq = max(freq, *target_freq);
+			*target_freq = max(freq, *target_freq * HZ_PER_KHZ);
 			cpufreq_cpu_put(policy);
 			continue;
 		}
@@ -145,7 +145,7 @@ static int get_target_freq_with_cpufreq(struct devfreq *devfreq,
 		cpu_percent = ((cpu_cur - cpu_min) * 100) / (cpu_max - cpu_min);
 		freq = dev_min + mult_frac(dev_max - dev_min, cpu_percent, 100);
 
-		*target_freq = max(freq, *target_freq);
+		*target_freq = max(freq, *target_freq * HZ_PER_KHZ);
 		cpufreq_cpu_put(policy);
 	}
 
