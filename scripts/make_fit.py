@@ -339,6 +339,10 @@ def _process_dtbs(args, fsw, entries, fdts):
             if fn not in fdts and fn not in todo:
                 todo.append(fn)
 
+    # HACK elm doesn't support compression on FDT
+    old_compress = args.compress
+    args.compress = 'none'
+
     # Compress all DTBs in parallel
     cache = {}
     if todo and args.compress != 'none':
@@ -364,6 +368,8 @@ def _process_dtbs(args, fsw, entries, fdts):
 
         files_seq = [fdts[fn] for fn in files]
         entries.append([model, compat, files_seq])
+
+    args.compress = old_compress
 
     return seq, size
 
