@@ -959,6 +959,20 @@
 				allwinner,pinmux = <2>;
 				function = "s_cir_rx";
 			};
+
+			/omit-if-no-ref/
+			r_spi0_pins: r-spi0-pins {
+				pins = "PL11", "PL12", "PL13";
+				function = "r_spi0";
+				allwinner,pinmux = <6>;
+			};
+
+			/omit-if-no-ref/
+			r_spi0_cs0_pin: r-spi0-cs0-pin {
+				pins = "PL10";
+				function = "r_spi0";
+				allwinner,pinmux = <6>;
+			};
 		};
 
 		r_ir: ir@7040000 {
