@@ -23,6 +23,7 @@ properties:
       - allwinner,sun8i-h3-codec
       - allwinner,sun8i-v3s-codec
       - allwinner,sun50i-h616-codec
+      - allwinner,sun55i-a523-codec
       - allwinner,suniv-f1c100s-codec
 
   reg:
@@ -279,6 +280,35 @@ allOf:
           items:
             - const: rx
             - const: tx
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - allwinner,sun55i-a523-codec
+    then:
+      properties:
+        allwinner,audio-routing:
+          items:
+            enum:
+              # Audio Pins on the SoC
+              - HP
+              - HPCOM
+              - LINEOUT
+              - MIC1
+              - MIC2
+              - MIC3
+
+              # Microphone Biases from the SoC
+              - HBIAS
+              - MBIAS
+
+              # Board Connectors
+              - Headphone
+              - Headset Mic
+              - Line Out
+              - Mic
+              - Speaker
 
   - if:
       properties:
