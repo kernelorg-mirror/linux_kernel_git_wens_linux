@@ -328,7 +328,27 @@
 /* A523 family specific registers */
 #define SUN55I_CODEC_DAC_FIFOC		(0x10)
 #define SUN55I_CODEC_DAC_TXDATA		(0x20)
+#define SUN55I_CODEC_DAC_DEBUG		(0x28)
+#define SUN55I_CODEC_DAC_DEBUG_LOOP		(0)
 
+#define SUN55I_CODEC_ADC_FIFOC		(0x30)
+/* no MONO_EN */
+#define SUN55I_CODEC_ADC_FIFOC_RX_SAMPLE_BITS		(16)
+#define SUN55I_CODEC_ADC_FIFOC_RX_TRIG_LEVEL		(4)
+#define SUN55I_CODEC_ADC_FIFOC_ADC_DRQ_EN		(3)
+
+#define SUN55I_CODEC_ADC_RXDATA		(0x40)
+#define SUN55I_CODEC_ADC_DIG_CTRL	(0x50)
+#define SUN55I_CODEC_ADC_DIG_CTRL_ADC1_EN	(0)
+#define SUN55I_CODEC_ADC_DIG_CTRL_ADC2_EN	(1)
+#define SUN55I_CODEC_ADC_DIG_CTRL_ADC3_EN	(2)
+
+#define SUN55I_CODEC_ADC1		(0x300)
+#define SUN55I_CODEC_ADC1_ADC1EN		(31)
+#define SUN55I_CODEC_ADC1_MIC1_PGA_EN		(30)
+#define SUN55I_CODEC_ADC1_MIC1_PGA_GAIN		(8)
+#define SUN55I_CODEC_ADC2		(0x304)
+#define SUN55I_CODEC_ADC3		(0x308)
 #define SUN55I_CODEC_DAC		(0x310)
 #define SUN55I_CODEC_DAC_HP_GAIN		(28)
 #define SUN55I_CODEC_DAC_CPLDO_VOLT		(24)
@@ -342,7 +362,9 @@
 #define SUN55I_CODEC_DAC_LINEOUT_VC		(0)
 #define SUN55I_CODEC_MICBIAS		(0x318)
 #define SUN55I_CODEC_MICBIAS_HBIASEN		(15)
+#define SUN55I_CODEC_MICBIAS_HBIASSEL		(13)
 #define SUN55I_CODEC_MICBIAS_MBIASEN		(7)
+#define SUN55I_CODEC_MICBIAS_MBIASSEL		(5)
 #define SUN55I_CODEC_RAMP		(0x31c)
 /* No idea what these do, just that at least one of them has to be enabled */
 #define SUN55I_CODEC_RAMP_MANUAL_DOWN_EN	(3)
@@ -2133,12 +2155,36 @@ static const DECLARE_TLV_DB_RANGE(sun55i_codec_lineout_vol_scale,
 	0, 1, TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 1),
 	2, 31, TLV_DB_SCALE_ITEM(-4350, 150, 0),
 );
+static const DECLARE_TLV_DB_RANGE(sun55i_codec_adc_gain_scale,
+	0, 0, TLV_DB_SCALE_ITEM(0, 0, 0),
+	1, 3, TLV_DB_SCALE_ITEM(600, 0, 0),
+	4, 31, TLV_DB_SCALE_ITEM(900, 100, 0),
+);
+static const char * const sun55i_codec_hbias_volt_enum_text[] = {
+	"1.88V", "2.09V", "2.33V", "2.55V"
+};
+static SOC_ENUM_SINGLE_DECL(sun55i_codec_hbias_volt_enum, SUN55I_CODEC_DAC,
+			    SUN55I_CODEC_MICBIAS_HBIASSEL,
+			    sun55i_codec_hbias_volt_enum_text);
+static const char * const sun55i_codec_mbias_volt_enum_text[] = {
+	"1.88V", "2.09V", "2.33V", "2.50V"
+};
+static SOC_ENUM_SINGLE_DECL(sun55i_codec_mbias_volt_enum, SUN55I_CODEC_DAC,
+			    SUN55I_CODEC_MICBIAS_MBIASSEL,
+			    sun55i_codec_mbias_volt_enum_text);
 static const char * const sun55i_codec_cpldo_volt_enum_text[] = {
 	"0.9V", "1.0V", "1.1V", "1.2V"
 };
 static SOC_ENUM_SINGLE_DECL(sun55i_codec_cpldo_volt_enum, SUN55I_CODEC_DAC,
 			    SUN55I_CODEC_DAC_CPLDO_VOLT,
 			    sun55i_codec_cpldo_volt_enum_text);
+
+static const char * const sun55i_codec_dac_loopback_enum_text[] = {
+	"Disabled", "DAC L/R to ADC 1/2", "DAC L to ADC 3"
+};
+static SOC_ENUM_SINGLE_DECL(sun55i_codec_dac_loopback_enum, SUN55I_CODEC_DAC_DEBUG,
+			    SUN55I_CODEC_DAC_DEBUG_LOOP,
+			    sun55i_codec_dac_loopback_enum_text);
 
 static const struct snd_kcontrol_new sun55i_codec_controls[] = {
 	SOC_SINGLE_TLV("Digital Playback Volume", SUN4I_CODEC_DAC_DPC,
@@ -2150,7 +2196,26 @@ static const struct snd_kcontrol_new sun55i_codec_controls[] = {
 	SOC_SINGLE_TLV("Line Out Playback Volume", SUN55I_CODEC_DAC,
 		       SUN55I_CODEC_DAC_LINEOUT_VC, 0x1f, 0,
 		       sun55i_codec_lineout_vol_scale),
+	/* These actually affect the number of FIFO samples / channels */
+	SOC_SINGLE("ADC1 Capture Switch", SUN55I_CODEC_ADC_DIG_CTRL,
+		   SUN55I_CODEC_ADC_DIG_CTRL_ADC1_EN, 1, 0),
+	SOC_SINGLE("ADC2 Capture Switch", SUN55I_CODEC_ADC_DIG_CTRL,
+		   SUN55I_CODEC_ADC_DIG_CTRL_ADC2_EN, 1, 0),
+	SOC_SINGLE("ADC3 Capture Switch", SUN55I_CODEC_ADC_DIG_CTRL,
+		   SUN55I_CODEC_ADC_DIG_CTRL_ADC3_EN, 1, 0),
+	SOC_SINGLE_TLV("Mic1 PGA Gain Capture Volume", SUN55I_CODEC_ADC1,
+		       SUN55I_CODEC_ADC1_MIC1_PGA_GAIN, 0x1f, 0,
+		       sun55i_codec_adc_gain_scale),
+	SOC_SINGLE_TLV("Mic2 PGA Gain Capture Volume", SUN55I_CODEC_ADC2,
+		       SUN55I_CODEC_ADC1_MIC1_PGA_GAIN, 0x1f, 0,
+		       sun55i_codec_adc_gain_scale),
+	SOC_SINGLE_TLV("Mic3 PGA Gain Capture Volume", SUN55I_CODEC_ADC3,
+		       SUN55I_CODEC_ADC1_MIC1_PGA_GAIN, 0x1f, 0,
+		       sun55i_codec_adc_gain_scale),
+	SOC_ENUM("DAC Loopback Route", sun55i_codec_dac_loopback_enum),
 	SOC_ENUM("CPLDO Voltage", sun55i_codec_cpldo_volt_enum),
+	SOC_ENUM("HBIAS Voltage", sun55i_codec_hbias_volt_enum),
+	SOC_ENUM("MBIAS Voltage", sun55i_codec_mbias_volt_enum),
 };
 
 static const struct snd_kcontrol_new sun55i_codec_lineout_mute =
@@ -2168,6 +2233,28 @@ static const struct snd_soc_dapm_widget sun55i_codec_dapm_widgets[] = {
 			    SUN55I_CODEC_MICBIAS_HBIASEN, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("MBIAS", SUN55I_CODEC_MICBIAS,
 			    SUN55I_CODEC_MICBIAS_MBIASEN, 0, NULL, 0),
+
+	/* Mic input path */
+	SND_SOC_DAPM_PGA("Mic1 PGA", SUN55I_CODEC_ADC1,
+			 SUN55I_CODEC_ADC1_MIC1_PGA_EN, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Mic2 PGA", SUN55I_CODEC_ADC2,
+			 SUN55I_CODEC_ADC1_MIC1_PGA_EN, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Mic3 PGA", SUN55I_CODEC_ADC3,
+			 SUN55I_CODEC_ADC1_MIC1_PGA_EN, 0, NULL, 0),
+
+	/* Digital parts of the ADCs */
+	SND_SOC_DAPM_SUPPLY("ADC Enable", SUN55I_CODEC_ADC_FIFOC,
+			    SUN4I_CODEC_ADC_FIFOC_EN_AD, 0, NULL, 0),
+	SND_SOC_DAPM_ADC("ADC", "Codec Capture", SUN55I_CODEC_ADC_FIFOC,
+			 SUN4I_CODEC_ADC_FIFOC_EN_AD, 0),
+
+	/* Analog parts of the ADCs */
+	SND_SOC_DAPM_SUPPLY("ADC1", SUN55I_CODEC_ADC1,
+			    SUN55I_CODEC_ADC1_ADC1EN, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ADC2", SUN55I_CODEC_ADC2,
+			    SUN55I_CODEC_ADC1_ADC1EN, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ADC3", SUN55I_CODEC_ADC3,
+			    SUN55I_CODEC_ADC1_ADC1EN, 0, NULL, 0),
 
 	/* Digital parts of the DACs */
 	SND_SOC_DAPM_SUPPLY("DAC Enable", SUN4I_CODEC_DAC_DPC,
@@ -2205,6 +2292,21 @@ static const struct snd_soc_dapm_widget sun55i_codec_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route sun55i_codec_dapm_routes[] = {
+	/* Microphone Routes */
+	{ "Mic1 PGA", NULL, "MIC1"},
+	{ "Mic2 PGA", NULL, "MIC2"},
+	{ "Mic3 PGA", NULL, "MIC3"},
+
+	/* ADC Routes */
+	{ "ADC Enable", NULL, "VRP" },
+	{ "ADC", NULL, "ADC1" },
+	{ "ADC", NULL, "ADC2" },
+	{ "ADC", NULL, "ADC3" },
+	{ "ADC", NULL, "ADC Enable" },
+	{ "ADC", NULL, "Mic1 PGA" },
+	{ "ADC", NULL, "Mic2 PGA" },
+	{ "ADC", NULL, "Mic3 PGA" },
+
 	/* DAC Routes */
 	{ "DAC Enable", NULL, "VRP" },
 	{ "DAC Enable", NULL, "RAMP" },
@@ -2348,6 +2450,7 @@ struct sun4i_codec_quirks {
 	bool has_split_clks;
 	u8 dma_max_burst;
 	u8 max_bits;
+	u8 max_capture_channels;
 	s8 reg_adc_fifoc_drq_en;	/* ADC FIFO DRQ enable bit offset */
 	s8 reg_adc_fifoc_mono_en;	/* ADC FIFO mono enable bit offset */
 	s8 reg_adc_fifoc_sample_bits;	/* ADC FIFO sample size bit offset */
@@ -2475,14 +2578,19 @@ static const struct sun4i_codec_quirks sun55i_a523_codec_quirks = {
 	.regmap_config	= &sun55i_codec_regmap_config,
 	.codec		= &sun55i_codec_codec,
 	.create_card	= sun55i_codec_create_card,
+	.reg_adc_fifoc	= REG_FIELD(SUN55I_CODEC_ADC_FIFOC, 0, 31),
 	.reg_dac_fifoc	= REG_FIELD(SUN55I_CODEC_DAC_FIFOC, 0, 31),
+	.reg_adc_fifoc_trigger = REG_FIELD(SUN55I_CODEC_ADC_FIFOC, 4, 11),
 	.reg_dac_txdata	= SUN55I_CODEC_DAC_TXDATA,
+	.reg_adc_rxdata	= SUN55I_CODEC_ADC_RXDATA,
 	.has_reset	= true,
-	/* TODO: support capture side */
-	.playback_only	= true,
 	.has_split_clks = true,
 	.dma_max_burst	= SUN4I_DMA_MAX_BURST,
 	.max_bits	= 20,
+	.max_capture_channels = 3,
+	.reg_adc_fifoc_drq_en = SUN55I_CODEC_ADC_FIFOC_ADC_DRQ_EN,
+	.reg_adc_fifoc_mono_en = -1,
+	.reg_adc_fifoc_sample_bits = SUN55I_CODEC_ADC_FIFOC_RX_SAMPLE_BITS,
 };
 
 static const struct sun4i_codec_quirks suniv_f1c100s_codec_quirks = {
@@ -2666,6 +2774,8 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 		sun4i_codec_dai.playback.sig_bits = quirks->max_bits;
 		sun4i_codec_dai.capture.sig_bits = quirks->max_bits;
 	}
+	if (quirks->max_capture_channels)
+		sun4i_codec_dai.capture.channels_max = quirks->max_capture_channels;
 
 	ret = devm_snd_soc_register_component(&pdev->dev, quirks->codec,
 				     &sun4i_codec_dai, 1);
