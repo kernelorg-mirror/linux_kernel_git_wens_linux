@@ -146,7 +146,7 @@ static const struct vm_operations_struct exynos_drm_gem_vm_ops = {
 
 static const struct drm_gem_object_funcs exynos_drm_gem_object_funcs = {
 	.free = exynos_drm_gem_free_object,
-	.get_sg_table = exynos_drm_gem_prime_get_sg_table,
+	.get_sg_table = drm_gem_dma_object_get_sg_table,
 	.mmap = exynos_drm_gem_mmap,
 	.vm_ops = &exynos_drm_gem_vm_ops,
 };
@@ -399,30 +399,6 @@ err_close_vm:
 }
 
 /* low-level interface prime helpers */
-struct sg_table *exynos_drm_gem_prime_get_sg_table(struct drm_gem_object *obj)
-{
-	struct exynos_drm_gem *exynos_gem = to_exynos_gem(obj);
-	struct drm_gem_dma_object *dma_obj = &exynos_gem->base;
-	struct drm_device *drm_dev = obj->dev;
-	struct sg_table *sgt;
-	int ret;
-
-	sgt = kzalloc_obj(*sgt);
-	if (!sgt)
-		return ERR_PTR(-ENOMEM);
-
-	ret = dma_get_sgtable_attrs(drm_dev_dma_dev(drm_dev), sgt, dma_obj->vaddr,
-				    dma_obj->dma_addr, obj->size,
-				    dma_obj->dma_attrs);
-	if (ret) {
-		DRM_ERROR("failed to get sgtable, %d\n", ret);
-		kfree(sgt);
-		return ERR_PTR(ret);
-	}
-
-	return sgt;
-}
-
 struct drm_gem_object *
 exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
 				     struct dma_buf_attachment *attach,
