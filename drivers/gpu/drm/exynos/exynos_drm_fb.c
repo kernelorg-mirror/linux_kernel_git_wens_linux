@@ -76,7 +76,7 @@ exynos_drm_framebuffer_init(struct drm_device *dev,
 		if (ret < 0)
 			goto err;
 
-		fb->obj[i] = &exynos_gem[i]->base;
+		fb->obj[i] = &exynos_gem[i]->base.base;
 	}
 
 	drm_helper_mode_fill_fb_struct(dev, fb, info, mode_cmd);
@@ -120,7 +120,7 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 			goto err;
 		}
 
-		if (size > exynos_gem[i]->base.size) {
+		if (size > exynos_gem[i]->base.base.size) {
 			i++;
 			ret = -EINVAL;
 			goto err;
@@ -150,7 +150,7 @@ dma_addr_t exynos_drm_fb_dma_addr(struct drm_framebuffer *fb, int index)
 		return 0;
 
 	exynos_gem = to_exynos_gem(fb->obj[index]);
-	return exynos_gem->dma_addr + fb->offsets[index];
+	return exynos_gem->base.dma_addr + fb->offsets[index];
 }
 
 static struct drm_mode_config_helper_funcs exynos_drm_mode_config_helpers = {

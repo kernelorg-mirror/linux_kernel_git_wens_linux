@@ -9,38 +9,25 @@
 #define _EXYNOS_DRM_GEM_H_
 
 #include <drm/drm_gem.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <linux/mm_types.h>
 
-#define to_exynos_gem(x)	container_of(x, struct exynos_drm_gem, base)
+#define to_exynos_gem(x)	container_of(to_drm_gem_dma_obj(x), struct exynos_drm_gem, base)
 
 #define IS_NONCONTIG_BUFFER(f)		(f & EXYNOS_BO_NONCONTIG)
 
 /*
  * exynos drm buffer structure.
  *
- * @base: a gem object.
- *	- a new handle to this gem object would be created
- *	by drm_gem_handle_create().
+ * @base: base GEM DMA object.
  * @flags: indicate memory type to allocated buffer and cache attruibute.
- * @cookie: cookie returned by dma_alloc_attrs
- * @kvaddr: kernel virtual address to allocated memory region (for fbdev)
- * @dma_addr: bus address(accessed by dma) to allocated memory region.
- *	- this address could be physical address without IOMMU and
- *	device address with IOMMU.
- * @dma_attrs: attrs passed dma mapping framework
- * @sgt: Imported sg_table.
  *
  * P.S. this object would be transferred to user as kms_bo.handle so
  *	user can access the buffer through kms_bo.handle.
  */
 struct exynos_drm_gem {
-	struct drm_gem_object	base;
-	unsigned int		flags;
-	void			*cookie;
-	void			*kvaddr;
-	dma_addr_t		dma_addr;
-	unsigned long		dma_attrs;
-	struct sg_table		*sgt;
+	struct drm_gem_dma_object	base;
+	unsigned int			flags;
 };
 
 /* destroy a buffer with gem object */
@@ -78,7 +65,7 @@ struct exynos_drm_gem *exynos_drm_gem_get(struct drm_file *filp,
  */
 static inline void exynos_drm_gem_put(struct exynos_drm_gem *exynos_gem)
 {
-	drm_gem_object_put(&exynos_gem->base);
+	drm_gem_object_put(&exynos_gem->base.base);
 }
 
 /* get buffer information to memory region allocated by gem. */

@@ -12,6 +12,7 @@
 
 #include <drm/drm_device.h>
 #include <drm/drm_dumb_buffers.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_prime.h>
 #include <drm/drm_print.h>
 #include <drm/drm_vma_manager.h>
@@ -26,10 +27,11 @@ static int exynos_drm_gem_mmap(struct drm_gem_object *obj, struct vm_area_struct
 
 static int exynos_drm_alloc_buf(struct exynos_drm_gem *exynos_gem, bool kvmap)
 {
-	struct drm_device *dev = exynos_gem->base.dev;
+	struct drm_device *dev = exynos_gem->base.base.dev;
+	struct drm_gem_dma_object *dma_obj = &exynos_gem->base;
 	unsigned long attr = 0;
 
-	if (exynos_gem->dma_addr) {
+	if (dma_obj->dma_addr) {
 		DRM_DEV_DEBUG_KMS(drm_dev_dma_dev(dev), "already allocated.\n");
 		return 0;
 	}
@@ -54,38 +56,35 @@ static int exynos_drm_alloc_buf(struct exynos_drm_gem *exynos_gem, bool kvmap)
 	if (!kvmap)
 		attr |= DMA_ATTR_NO_KERNEL_MAPPING;
 
-	exynos_gem->dma_attrs = attr;
-	exynos_gem->cookie = dma_alloc_attrs(drm_dev_dma_dev(dev), exynos_gem->base.size,
-					     &exynos_gem->dma_addr, GFP_KERNEL,
-					     exynos_gem->dma_attrs);
-	if (!exynos_gem->cookie) {
+	dma_obj->dma_attrs = attr;
+	dma_obj->vaddr = dma_alloc_attrs(drm_dev_dma_dev(dev), dma_obj->base.size,
+					 &dma_obj->dma_addr, GFP_KERNEL,
+					 dma_obj->dma_attrs);
+	if (!dma_obj->vaddr) {
 		DRM_DEV_ERROR(drm_dev_dma_dev(dev), "failed to allocate buffer.\n");
 		return -ENOMEM;
 	}
 
-	if (kvmap)
-		exynos_gem->kvaddr = exynos_gem->cookie;
-
 	DRM_DEV_DEBUG_KMS(drm_dev_dma_dev(dev), "dma_addr(%pad), size(0x%zx)\n",
-			  &exynos_gem->dma_addr, exynos_gem->base.size);
+			  &dma_obj->dma_addr, dma_obj->base.size);
 	return 0;
 }
 
 static void exynos_drm_free_buf(struct exynos_drm_gem *exynos_gem)
 {
-	struct drm_device *dev = exynos_gem->base.dev;
+	struct drm_device *dev = exynos_gem->base.base.dev;
+	struct drm_gem_dma_object *dma_obj = &exynos_gem->base;
 
-	if (!exynos_gem->dma_addr) {
+	if (!dma_obj->dma_addr) {
 		DRM_DEV_DEBUG_KMS(dev->dev, "dma_addr is invalid.\n");
 		return;
 	}
 
 	DRM_DEV_DEBUG_KMS(dev->dev, "dma_addr(%pad), size(0x%zx)\n",
-			  &exynos_gem->dma_addr, exynos_gem->base.size);
+			  &dma_obj->dma_addr, dma_obj->base.size);
 
-	dma_free_attrs(drm_dev_dma_dev(dev), exynos_gem->base.size, exynos_gem->cookie,
-			(dma_addr_t)exynos_gem->dma_addr,
-			exynos_gem->dma_attrs);
+	dma_free_attrs(drm_dev_dma_dev(dev), dma_obj->base.size, dma_obj->vaddr,
+		       dma_obj->dma_addr, dma_obj->dma_attrs);
 }
 
 static int exynos_drm_gem_handle_create(struct drm_gem_object *obj,
@@ -112,7 +111,8 @@ static int exynos_drm_gem_handle_create(struct drm_gem_object *obj,
 
 void exynos_drm_gem_destroy(struct exynos_drm_gem *exynos_gem)
 {
-	struct drm_gem_object *obj = &exynos_gem->base;
+	struct drm_gem_object *obj = &exynos_gem->base.base;
+	struct drm_gem_dma_object *dma_obj = &exynos_gem->base;
 
 	DRM_DEV_DEBUG_KMS(drm_dev_dma_dev(obj->dev), "handle count = %d\n",
 			  obj->handle_count);
@@ -124,7 +124,7 @@ void exynos_drm_gem_destroy(struct exynos_drm_gem *exynos_gem)
 	 * once dmabuf's refcount becomes 0.
 	 */
 	if (obj->import_attach)
-		drm_prime_gem_destroy(obj, exynos_gem->sgt);
+		drm_prime_gem_destroy(obj, dma_obj->sgt);
 	else
 		exynos_drm_free_buf(exynos_gem);
 
@@ -162,7 +162,7 @@ static struct exynos_drm_gem *exynos_drm_gem_init(struct drm_device *dev,
 	if (!exynos_gem)
 		return ERR_PTR(-ENOMEM);
 
-	obj = &exynos_gem->base;
+	obj = &exynos_gem->base.base;
 
 	obj->funcs = &exynos_drm_gem_object_funcs;
 
@@ -224,7 +224,7 @@ struct exynos_drm_gem *exynos_drm_gem_create(struct drm_device *dev,
 
 	ret = exynos_drm_alloc_buf(exynos_gem, kvmap);
 	if (ret < 0) {
-		drm_gem_object_release(&exynos_gem->base);
+		drm_gem_object_release(&exynos_gem->base.base);
 		kfree(exynos_gem);
 		return ERR_PTR(ret);
 	}
@@ -243,7 +243,7 @@ int exynos_drm_gem_create_ioctl(struct drm_device *dev, void *data,
 	if (IS_ERR(exynos_gem))
 		return PTR_ERR(exynos_gem);
 
-	ret = exynos_drm_gem_handle_create(&exynos_gem->base, file_priv,
+	ret = exynos_drm_gem_handle_create(&exynos_gem->base.base, file_priv,
 					   &args->handle);
 	if (ret) {
 		exynos_drm_gem_destroy(exynos_gem);
@@ -276,7 +276,8 @@ struct exynos_drm_gem *exynos_drm_gem_get(struct drm_file *filp,
 static int exynos_drm_gem_mmap_buffer(struct exynos_drm_gem *exynos_gem,
 				      struct vm_area_struct *vma)
 {
-	struct drm_device *drm_dev = exynos_gem->base.dev;
+	struct drm_device *drm_dev = exynos_gem->base.base.dev;
+	struct drm_gem_dma_object *dma_obj = &exynos_gem->base;
 	unsigned long vm_size;
 	int ret;
 
@@ -286,12 +287,12 @@ static int exynos_drm_gem_mmap_buffer(struct exynos_drm_gem *exynos_gem,
 	vm_size = vma->vm_end - vma->vm_start;
 
 	/* check if user-requested size is valid. */
-	if (vm_size > exynos_gem->base.size)
+	if (vm_size > dma_obj->base.size)
 		return -EINVAL;
 
-	ret = dma_mmap_attrs(drm_dev_dma_dev(drm_dev), vma, exynos_gem->cookie,
-			     exynos_gem->dma_addr, exynos_gem->base.size,
-			     exynos_gem->dma_attrs);
+	ret = dma_mmap_attrs(drm_dev_dma_dev(drm_dev), vma, dma_obj->vaddr,
+			     dma_obj->dma_addr, dma_obj->base.size,
+			     dma_obj->dma_attrs);
 	if (ret < 0) {
 		DRM_ERROR("failed to mmap.\n");
 		return ret;
@@ -352,7 +353,7 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 		return PTR_ERR(exynos_gem);
 	}
 
-	ret = exynos_drm_gem_handle_create(&exynos_gem->base, file_priv,
+	ret = exynos_drm_gem_handle_create(&exynos_gem->base.base, file_priv,
 					   &args->handle);
 	if (ret) {
 		exynos_drm_gem_destroy(exynos_gem);
@@ -401,6 +402,7 @@ err_close_vm:
 struct sg_table *exynos_drm_gem_prime_get_sg_table(struct drm_gem_object *obj)
 {
 	struct exynos_drm_gem *exynos_gem = to_exynos_gem(obj);
+	struct drm_gem_dma_object *dma_obj = &exynos_gem->base;
 	struct drm_device *drm_dev = obj->dev;
 	struct sg_table *sgt;
 	int ret;
@@ -409,9 +411,9 @@ struct sg_table *exynos_drm_gem_prime_get_sg_table(struct drm_gem_object *obj)
 	if (!sgt)
 		return ERR_PTR(-ENOMEM);
 
-	ret = dma_get_sgtable_attrs(drm_dev_dma_dev(drm_dev), sgt, exynos_gem->cookie,
-				    exynos_gem->dma_addr, obj->size,
-				    exynos_gem->dma_attrs);
+	ret = dma_get_sgtable_attrs(drm_dev_dma_dev(drm_dev), sgt, dma_obj->vaddr,
+				    dma_obj->dma_addr, obj->size,
+				    dma_obj->dma_attrs);
 	if (ret) {
 		DRM_ERROR("failed to get sgtable, %d\n", ret);
 		kfree(sgt);
@@ -448,7 +450,7 @@ exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
 	else
 		exynos_gem->flags |= EXYNOS_BO_CONTIG;
 
-	exynos_gem->dma_addr = sg_dma_address(sgt->sgl);
-	exynos_gem->sgt = sgt;
-	return &exynos_gem->base;
+	exynos_gem->base.dma_addr = sg_dma_address(sgt->sgl);
+	exynos_gem->base.sgt = sgt;
+	return &exynos_gem->base.base;
 }

@@ -364,12 +364,12 @@ static int exynos_drm_ipp_task_setup_buffer(struct exynos_drm_ipp_buffer *buf,
 		}
 		buf->exynos_gem[i] = gem;
 
-		if (size + buf->buf.offset[i] > buf->exynos_gem[i]->base.size) {
+		if (size + buf->buf.offset[i] > buf->exynos_gem[i]->base.base.size) {
 			i++;
 			ret = -EINVAL;
 			goto gem_free;
 		}
-		buf->dma_addr[i] = buf->exynos_gem[i]->dma_addr +
+		buf->dma_addr[i] = buf->exynos_gem[i]->base.dma_addr +
 				   buf->buf.offset[i];
 	}
 

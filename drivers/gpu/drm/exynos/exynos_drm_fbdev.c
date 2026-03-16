@@ -95,7 +95,7 @@ int exynos_drm_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 	exynos_gem = exynos_drm_gem_create(dev, EXYNOS_BO_WC, size, true);
 	if (IS_ERR(exynos_gem))
 		return PTR_ERR(exynos_gem);
-	obj = &exynos_gem->base;
+	obj = &exynos_gem->base.base;
 
 	ret = drm_gem_handle_create(file, obj, &handle);
 	if (ret)
@@ -117,7 +117,7 @@ int exynos_drm_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 	drm_fb_helper_fill_info(info, helper, sizes);
 
 	info->flags |= FBINFO_VIRTFB;
-	info->screen_buffer = exynos_gem->kvaddr;
+	info->screen_buffer = exynos_gem->base.vaddr;
 	info->screen_size = obj->size;
 	info->fix.smem_len = obj->size;
 
