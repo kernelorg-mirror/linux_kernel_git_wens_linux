@@ -70,23 +70,6 @@ static int exynos_drm_alloc_buf(struct exynos_drm_gem *exynos_gem, bool kvmap)
 	return 0;
 }
 
-static void exynos_drm_free_buf(struct exynos_drm_gem *exynos_gem)
-{
-	struct drm_device *dev = exynos_gem->base.base.dev;
-	struct drm_gem_dma_object *dma_obj = &exynos_gem->base;
-
-	if (!dma_obj->dma_addr) {
-		DRM_DEV_DEBUG_KMS(dev->dev, "dma_addr is invalid.\n");
-		return;
-	}
-
-	DRM_DEV_DEBUG_KMS(dev->dev, "dma_addr(%pad), size(0x%zx)\n",
-			  &dma_obj->dma_addr, dma_obj->base.size);
-
-	dma_free_attrs(drm_dev_dma_dev(dev), dma_obj->base.size, dma_obj->vaddr,
-		       dma_obj->dma_addr, dma_obj->dma_attrs);
-}
-
 static int exynos_drm_gem_handle_create(struct drm_gem_object *obj,
 					struct drm_file *file_priv,
 					unsigned int *handle)
@@ -111,27 +94,9 @@ static int exynos_drm_gem_handle_create(struct drm_gem_object *obj,
 
 void exynos_drm_gem_destroy(struct exynos_drm_gem *exynos_gem)
 {
-	struct drm_gem_object *obj = &exynos_gem->base.base;
 	struct drm_gem_dma_object *dma_obj = &exynos_gem->base;
 
-	DRM_DEV_DEBUG_KMS(drm_dev_dma_dev(obj->dev), "handle count = %d\n",
-			  obj->handle_count);
-
-	/*
-	 * do not release memory region from exporter.
-	 *
-	 * the region will be released by exporter
-	 * once dmabuf's refcount becomes 0.
-	 */
-	if (obj->import_attach)
-		drm_prime_gem_destroy(obj, dma_obj->sgt);
-	else
-		exynos_drm_free_buf(exynos_gem);
-
-	/* release file pointer to gem object. */
-	drm_gem_object_release(obj);
-
-	kfree(exynos_gem);
+	drm_gem_dma_free(dma_obj);
 }
 
 static void exynos_drm_gem_free_object(struct drm_gem_object *obj)
