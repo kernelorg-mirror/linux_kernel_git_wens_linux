@@ -22,12 +22,13 @@
 
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_print.h>
 #include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_g2d.h"
-#include "exynos_drm_gem.h"
 
 #define G2D_HW_MAJOR_VER		4
 #define G2D_HW_MINOR_VER		1
@@ -711,23 +712,23 @@ static int g2d_map_cmdlist_gem(struct g2d_data *g2d,
 		buf_desc = &buf_info->descs[reg_type];
 
 		if (buf_info->types[reg_type] == BUF_TYPE_GEM) {
-			struct exynos_drm_gem *exynos_gem;
+			struct drm_gem_object *obj;
 
-			exynos_gem = exynos_drm_gem_get(file, handle);
-			if (!exynos_gem) {
+			obj = drm_gem_object_lookup(file, handle);
+			if (!obj) {
 				ret = -EFAULT;
 				goto err;
 			}
 
 			if (!g2d_check_buf_desc_is_valid(g2d, buf_desc,
-							 reg_type, exynos_gem->base.base.size)) {
-				exynos_drm_gem_put(exynos_gem);
+							 reg_type, obj->size)) {
+				drm_gem_object_put(obj);
 				ret = -EFAULT;
 				goto err;
 			}
 
-			addr = &exynos_gem->base.dma_addr;
-			buf_info->obj[reg_type] = exynos_gem;
+			addr = &to_drm_gem_dma_obj(obj)->dma_addr;
+			buf_info->obj[reg_type] = obj;
 		} else {
 			struct drm_exynos_g2d_userptr g2d_userptr;
 
@@ -784,7 +785,7 @@ static void g2d_unmap_cmdlist_gem(struct g2d_data *g2d,
 		obj = buf_info->obj[reg_type];
 
 		if (buf_info->types[reg_type] == BUF_TYPE_GEM)
-			exynos_drm_gem_put(obj);
+			drm_gem_object_put(obj);
 		else
 			g2d_userptr_put_dma_addr(g2d, obj, false);
 
