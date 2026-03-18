@@ -21,12 +21,13 @@
 #include <drm/drm_blend.h>
 #include <drm/drm_file.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_print.h>
 #include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"
-#include "exynos_drm_gem.h"
 #include "exynos_drm_ipp.h"
 
 static int num_ipp;
@@ -356,28 +357,27 @@ static int exynos_drm_ipp_task_setup_buffer(struct exynos_drm_ipp_buffer *buf,
 		unsigned int height = (i == 0) ? buf->buf.height :
 			     DIV_ROUND_UP(buf->buf.height, buf->format->vsub);
 		unsigned long size = height * buf->buf.pitch[i];
-		struct exynos_drm_gem *gem = exynos_drm_gem_get(filp,
-							    buf->buf.gem_id[i]);
-		if (!gem) {
+		struct drm_gem_object *obj = drm_gem_object_lookup(filp, buf->buf.gem_id[i]);
+		if (!obj) {
 			ret = -ENOENT;
 			goto gem_free;
 		}
-		buf->exynos_gem[i] = gem;
+		buf->obj[i] = obj;
 
-		if (size + buf->buf.offset[i] > buf->exynos_gem[i]->base.base.size) {
+		if (size + buf->buf.offset[i] > buf->obj[i]->size) {
 			i++;
 			ret = -EINVAL;
 			goto gem_free;
 		}
-		buf->dma_addr[i] = buf->exynos_gem[i]->base.dma_addr +
+		buf->dma_addr[i] = to_drm_gem_dma_obj(buf->obj[i])->dma_addr +
 				   buf->buf.offset[i];
 	}
 
 	return 0;
 gem_free:
 	while (i--) {
-		exynos_drm_gem_put(buf->exynos_gem[i]);
-		buf->exynos_gem[i] = NULL;
+		drm_gem_object_put(buf->obj[i]);
+		buf->obj[i] = NULL;
 	}
 	return ret;
 }
@@ -386,10 +386,10 @@ static void exynos_drm_ipp_task_release_buf(struct exynos_drm_ipp_buffer *buf)
 {
 	int i;
 
-	if (!buf->exynos_gem[0])
+	if (!buf->obj[0])
 		return;
 	for (i = 0; i < buf->format->num_planes; i++)
-		exynos_drm_gem_put(buf->exynos_gem[i]);
+		drm_gem_object_put(buf->obj[i]);
 }
 
 static void exynos_drm_ipp_task_free(struct exynos_drm_ipp *ipp,

@@ -66,11 +66,13 @@ struct exynos_drm_ipp {
 	wait_queue_head_t done_wq;
 };
 
+struct drm_gem_object;
+
 struct exynos_drm_ipp_buffer {
 	struct drm_exynos_ipp_task_buffer buf;
 	struct drm_exynos_ipp_task_rect rect;
 
-	struct exynos_drm_gem *exynos_gem[DRM_FORMAT_MAX_PLANES];
+	struct drm_gem_object *obj[DRM_FORMAT_MAX_PLANES];
 	const struct drm_format_info *format;
 	dma_addr_t dma_addr[DRM_FORMAT_MAX_PLANES];
 };
