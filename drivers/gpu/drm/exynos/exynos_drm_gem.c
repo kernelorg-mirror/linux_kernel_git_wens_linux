@@ -104,16 +104,11 @@ static void exynos_drm_gem_free_object(struct drm_gem_object *obj)
 	exynos_drm_gem_destroy(to_exynos_gem(obj));
 }
 
-static const struct vm_operations_struct exynos_drm_gem_vm_ops = {
-	.open = drm_gem_vm_open,
-	.close = drm_gem_vm_close,
-};
-
 static const struct drm_gem_object_funcs exynos_drm_gem_object_funcs = {
 	.free = exynos_drm_gem_free_object,
 	.get_sg_table = drm_gem_dma_object_get_sg_table,
 	.mmap = exynos_drm_gem_mmap,
-	.vm_ops = &exynos_drm_gem_vm_ops,
+	.vm_ops = &drm_gem_dma_vm_ops,
 };
 
 static struct exynos_drm_gem *exynos_drm_gem_init(struct drm_device *dev,
