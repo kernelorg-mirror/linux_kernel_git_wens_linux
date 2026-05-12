@@ -1733,8 +1733,15 @@ static int hub_configure(struct usb_hub *hub,
 	for (i = 0; i < maxchild; i++) {
 		ret = usb_hub_create_port_device(hub, i + 1);
 		if (ret < 0) {
-			dev_err(hub->intfdev,
-				"couldn't create port%d device.\n", i + 1);
+			char *msg;
+
+			msg = devm_kasprintf(hub->intfdev, GFP_KERNEL,
+					     "couldn't create port%d device",
+					     i + 1);
+			if (msg)
+				message = msg;
+			else
+				message = "couldn't create port device";
 			break;
 		}
 	}
