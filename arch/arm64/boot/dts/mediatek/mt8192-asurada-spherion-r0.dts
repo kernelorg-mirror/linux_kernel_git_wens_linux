@@ -103,3 +103,41 @@
 &trackpad {
 	status = "fail-needs-probe";
 };
+
+&usb2_hub {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	usb-hub@4 {
+		compatible = "usb53e,608";
+		reg = <4>;
+		reset-gpios = <&pio 44 GPIO_ACTIVE_LOW>;
+		vdd-supply = <&pp3300_u>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@2 {
+				reg = <2>;
+
+				gl852g_p2_ep: endpoint {
+					remote-endpoint = <&bt_usb_ep>;
+				};
+			};
+		};
+	};
+};
+
+&wifi_bt_slot {
+	ports {
+		/* USB for Bluetooth */
+		port@2 {
+			reg = <2>;
+
+			bt_usb_ep: endpoint {
+				remote-endpoint = <&gl852g_p2_ep>;
+			};
+		};
+	};
+};

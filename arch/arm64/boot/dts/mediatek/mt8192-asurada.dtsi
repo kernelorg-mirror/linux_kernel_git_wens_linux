@@ -16,6 +16,7 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		i2c7 = &i2c7;
+		i2c8 = &i2c8;
 		mmc0 = &mmc0;
 		mmc1 = &mmc1;
 		serial0 = &uart0;
@@ -297,6 +298,53 @@
 		pinctrl-24 = <&aud_gpio_tdm_off_pins>;
 		pinctrl-25 = <&aud_gpio_tdm_on_pins>;
 	};
+
+	wifi_bt_slot: wifi-bt-connector {
+		compatible = "pcie-m2-e-connector";
+		pinctrl-names = "default";
+		pinctrl-0 = <&m2_e_key_kill_pins>, <&bt_pins>;
+		/* clocks: SUSCLK from PMIC RTC but no binding exists */
+		i2c-parent = <&i2c8>;
+		vpcie3v3-supply = <&pp3300_wlan>;
+		w-disable1-gpios = <&pio 145 GPIO_ACTIVE_LOW>;
+		w-disable2-gpios = <&pio 144 GPIO_ACTIVE_LOW>;
+		uart-wake-gpios = <&pio 22 GPIO_ACTIVE_LOW>;
+		/* device wake: open drain with internal & external pull-up */
+		vendor-porta-gpios = <&pio 168 GPIO_ACTIVE_HIGH>;
+		/* PCIe auxiliary signals wired to controller. */
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* PCIe for WiFi */
+			port@0 {
+				reg = <0>;
+
+				wifi_ep: endpoint {
+					remote-endpoint = <&pcie_ep>;
+				};
+			};
+
+			/* SDIO not implemented */
+
+			/* USB implemented only for one device */
+
+			/* UART for Bluetooth */
+			port@3 {
+				reg = <3>;
+
+				bt_uart_ep: endpoint {
+					remote-endpoint = <&uart1_ep>;
+				};
+			};
+
+			/*
+			 * I2S connected to PCM0 over GPIO114~117 but
+			 * platform audio binding does not use graphs.
+			 */
+		};
+	};
 };
 
 &afe {
@@ -543,6 +591,13 @@
 	};
 };
 
+&i2c8 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c8_pins>;
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
 &mfg0 {
 	domain-supply = <&mt6315_7_vbuck1>;
 };
@@ -650,19 +705,19 @@
 	pinctrl-0 = <&pcie_pins>;
 	memory-region = <&wifi_restricted_dma_region>;
 
-	pcie0: pcie@0,0 {
+	pcie@0 {
+		compatible = "pciclass,0604";
+		reg = <0 0 0 0 0>;
 		device_type = "pci";
-		reg = <0x0000 0 0 0 0>;
 		num-lanes = <1>;
-		bus-range = <0x1 0x1>;
-
 		#address-cells = <3>;
 		#size-cells = <2>;
 		ranges;
 
-		wifi: wifi@0,0 {
-			reg = <0x10000 0 0 0 0x100000>,
-			      <0x10000 0 0x100000 0 0x100000>;
+		port {
+			pcie_ep: endpoint {
+				remote-endpoint = <&wifi_ep>;
+			};
 		};
 	};
 };
@@ -1081,6 +1136,21 @@
 		};
 	};
 
+	bt_pins: bt-pins {
+		pins-bt-kill {
+			pinmux = <PINMUX_GPIO144__FUNC_GPIO144>;
+		};
+
+		pins-bt-wake {
+			pinmux = <PINMUX_GPIO22__FUNC_GPIO22>;
+			bias-pull-up;
+		};
+
+		pins-ap-wake-bt {
+			pinmux = <PINMUX_GPIO168__FUNC_GPIO168>;
+		};
+	};
+
 	cr50_int: cr50-irq-default-pins {
 		pins-gsc-ap-int-odl {
 			pinmux = <PINMUX_GPIO171__FUNC_GPIO171>;
@@ -1182,6 +1252,21 @@
 				 <PINMUX_GPIO125__FUNC_SDA7>;
 			bias-disable;
 			drive-strength-microamp = <1000>;
+		};
+	};
+
+	i2c8_pins: i2c8-default-pins {
+		pins-bus {
+			pinmux = <PINMUX_GPIO122__FUNC_SCL8>,
+				 <PINMUX_GPIO123__FUNC_SDA8>;
+			bias-pull-up = <MTK_PULL_SET_RSEL_011>;
+		};
+	};
+
+	m2_e_key_kill_pins: m2-e-key-kill-pins {
+		pins-kill {
+			pinmux = <PINMUX_GPIO144__FUNC_GPIO144>, /* BT_KILL */
+				 <PINMUX_GPIO145__FUNC_GPIO145>; /* WIFI_KILL */
 		};
 	};
 
@@ -1331,11 +1416,6 @@
 			pinmux = <PINMUX_GPIO65__FUNC_PCIE_CLKREQ_N>;
 			bias-pull-up;
 		};
-
-		pins-wifi-kill {
-			pinmux = <PINMUX_GPIO145__FUNC_GPIO145>; /* WIFI_KILL_L */
-			output-high;
-		};
 	};
 
 	pp1000_dpbrdg_en_pins: pp1000-dpbrdg-en-pins {
@@ -1461,6 +1541,47 @@
 		};
 	};
 
+	uart1_pins: uart1-pins {
+		pins-rx {
+			pinmux = <PINMUX_GPIO94__FUNC_URXD1>;
+			input-enable;
+			bias-pull-up;
+		};
+
+		pins-tx {
+			pinmux = <PINMUX_GPIO95__FUNC_UTXD1>;
+		};
+
+		pins-cts {
+			pinmux = <PINMUX_GPIO166__FUNC_UCTS1>;
+			input-enable;
+		};
+
+		pins-rts {
+			pinmux = <PINMUX_GPIO167__FUNC_URTS1>;
+		};
+	};
+
+	uart1_pins_sleep: uart1-sleep-pins {
+		pins-rx {
+			pinmux = <PINMUX_GPIO94__FUNC_GPIO94>;
+			input-enable;
+			bias-pull-up;
+		};
+
+		pins-tx {
+			pinmux = <PINMUX_GPIO95__FUNC_UTXD1>;
+		};
+
+		pins-cts {
+			pinmux = <PINMUX_GPIO166__FUNC_UCTS1>;
+			input-enable;
+		};
+
+		pins-rts {
+			pinmux = <PINMUX_GPIO167__FUNC_URTS1>;
+		};
+	};
 	vow_clk_miso_off_pins: vow-clk-miso-off-pins {
 		pins-miso-off {
 			pinmux = <PINMUX_GPIO219__FUNC_GPIO219>;
@@ -1706,12 +1827,44 @@
 	status = "okay";
 };
 
-&xhci {
+&uart1 {
 	status = "okay";
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&uart1_pins>;
+	pinctrl-1 = <&uart1_pins_sleep>;
+	/delete-property/ interrupts;
+	interrupts-extended = <&gic GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH 0>,
+			      <&pio 94 IRQ_TYPE_EDGE_FALLING>;
 
+	port {
+		uart1_ep: endpoint {
+			remote-endpoint = <&bt_uart_ep>;
+		};
+	};
+};
+
+&xhci {
 	wakeup-source;
 	vusb33-supply = <&pp3300_g>;
-	vbus-supply = <&pp5000_a>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	usb3_hub: usb-hub@1 {
+		compatible = "usb5e3,620";
+		reg = <1>;
+		reset-gpios = <&pio 44 GPIO_ACTIVE_LOW>;
+		vdd-supply = <&pp5000_a>;
+		peer-hub = <&usb2_hub>;
+	};
+
+	usb2_hub: usb-hub@2 {
+		compatible = "usb5e3,610";
+		reg = <2>;
+		reset-gpios = <&pio 44 GPIO_ACTIVE_LOW>;
+		vdd-supply = <&pp5000_a>;
+		peer-hub = <&usb3_hub>;
+	};
 };
 
 #include <arm/cros-ec-keyboard.dtsi>
