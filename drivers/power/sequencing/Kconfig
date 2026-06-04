@@ -46,4 +46,12 @@ config POWER_SEQUENCING_PCIE_M2
 	  connectors. This driver handles the power sequencing for the M.2
 	  connectors exposing multiple interfaces like PCIe, SATA, UART, etc...
 
+config POWER_SEQUENCING_USB_A
+	tristate "USB A connector power sequencing driver"
+	depends on OF
+	help
+	  Say Y here to enable the power sequencing driver for USB type A
+	  connectors. This driver handles the power sequencing for the USB
+	  A connector's VBUS.
+
 endif
