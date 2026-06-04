@@ -793,7 +793,8 @@ static bool port_pwrseq_is_supported(struct usb_port *port_dev)
 	if (!remote)
 		return false;
 
-	if (!fwnode_device_is_compatible(remote, "pcie-m2-e-connector")) {
+	if (!fwnode_device_is_compatible(remote, "pcie-m2-e-connector") &&
+	    !fwnode_device_is_compatible(remote, "usb-a-connector")) {
 		dev_dbg(dev, "remote endpoint %pfw is not a supported connector", remote);
 		return false;
 	}
