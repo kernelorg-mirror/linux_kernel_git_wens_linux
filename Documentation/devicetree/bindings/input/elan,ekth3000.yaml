@@ -29,6 +29,11 @@ properties:
   vcc-supply:
     description: a phandle for the regulator supplying 3.3V power
 
+  vddio-supply:
+    description: a phandle for the regulator supplying I/O power.
+      On many modules this is not exposed and simply routed from the
+      main supply.
+
   elan,trackpoint:
     type: boolean
     description: touchpad can support a trackpoint
