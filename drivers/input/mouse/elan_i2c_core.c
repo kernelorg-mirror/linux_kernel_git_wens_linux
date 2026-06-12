@@ -59,7 +59,7 @@ struct elan_tp_data {
 	struct i2c_client	*client;
 	struct input_dev	*input;
 	struct input_dev	*tp_input; /* trackpoint input node */
-	struct regulator	*vcc;
+	struct regulator_bulk_data supplies[2];
 
 	const struct elan_transport_ops *ops;
 
@@ -1213,7 +1213,7 @@ static void elan_disable_regulator(void *_data)
 {
 	struct elan_tp_data *data = _data;
 
-	regulator_disable(data->vcc);
+	regulator_bulk_disable(ARRAY_SIZE(data->supplies), data->supplies);
 }
 
 static int elan_probe(struct i2c_client *client)
@@ -1249,14 +1249,16 @@ static int elan_probe(struct i2c_client *client)
 	init_completion(&data->fw_completion);
 	mutex_init(&data->sysfs_mutex);
 
-	data->vcc = devm_regulator_get(dev, "vcc");
-	if (IS_ERR(data->vcc))
-		return dev_err_probe(dev, PTR_ERR(data->vcc), "Failed to get 'vcc' regulator\n");
+	data->supplies[0].supply = "vcc";
+	data->supplies[1].supply = "vddio";
+	error = devm_regulator_bulk_get(dev, ARRAY_SIZE(data->supplies), data->supplies);
+	if (error)
+		return dev_err_probe(dev, error, "Failed to get regulators\n");
 
-
-	error = regulator_enable_and_wait(data->vcc, ETP_POWER_ON_DELAY_US);
+	error = regulator_bulk_enable_and_wait(ARRAY_SIZE(data->supplies), data->supplies,
+					       ETP_POWER_ON_DELAY_US);
 	if (error) {
-		dev_err(dev, "Failed to enable regulator: %d\n", error);
+		dev_err(dev, "Failed to enable regulators: %d\n", error);
 		return error;
 	}
 
@@ -1366,10 +1368,10 @@ static int __elan_suspend(struct elan_tp_data *data)
 	if (error)
 		return error;
 
-	error = regulator_disable(data->vcc);
+	error = regulator_bulk_disable(ARRAY_SIZE(data->supplies), data->supplies);
 	if (error) {
 		dev_err(&client->dev,
-			"failed to disable regulator when suspending: %d\n",
+			"failed to disable 'vddio' regulator when suspending: %d\n",
 			error);
 		/* Attempt to power the chip back up */
 		elan_set_power(data, true);
@@ -1410,9 +1412,11 @@ static int elan_resume(struct device *dev)
 	int error;
 
 	if (!device_may_wakeup(dev)) {
-		error = regulator_enable_and_wait(data->vcc, ETP_POWER_ON_DELAY_US);
+		error = regulator_bulk_enable_and_wait(ARRAY_SIZE(data->supplies),
+						       data->supplies,
+						       ETP_POWER_ON_DELAY_US);
 		if (error) {
-			dev_err(dev, "error %d enabling regulator\n", error);
+			dev_err(dev, "error %d enabling regulators\n", error);
 			goto err;
 		}
 	}
