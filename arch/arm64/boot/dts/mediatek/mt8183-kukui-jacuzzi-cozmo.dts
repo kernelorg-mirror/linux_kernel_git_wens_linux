@@ -29,7 +29,7 @@
 		pinctrl-0 = <&trackpad_pins>;
 
 		interrupts-extended = <&pio 7 IRQ_TYPE_LEVEL_LOW>;
-
+		vdd-supply = <&pp3300_alw>;
 		wakeup-source;
 	};
 };
