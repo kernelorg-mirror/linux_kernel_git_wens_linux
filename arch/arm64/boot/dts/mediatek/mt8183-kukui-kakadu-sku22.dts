@@ -15,16 +15,15 @@
 };
 
 &i2c0 {
-	touchscreen: touchscreen@10 {
-		compatible = "hid-over-i2c";
+	touchscreen@10 {
+		compatible = "elan,ekth6915";
 		reg = <0x10>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&open_touch>;
-
 		interrupts-extended = <&pio 155 IRQ_TYPE_EDGE_FALLING>;
-
-		post-power-on-delay-ms = <10>;
-		hid-descr-addr = <0x0001>;
+		vcc33-supply = <&pp3300_alw>;
+		vccio-supply = <&pp1800_lcd>;
+		no-reset-on-power-off;
 	};
 };
 
