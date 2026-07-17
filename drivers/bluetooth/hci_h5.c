@@ -13,6 +13,8 @@
 #include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
+#include <linux/pwrseq/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/serdev.h>
 #include <linux/skbuff.h>
@@ -102,6 +104,7 @@ struct h5 {
 
 	struct gpio_desc *enable_gpio;
 	struct gpio_desc *device_wake_gpio;
+	struct pwrseq_desc *pwrseq;
 };
 
 enum h5_driver_info {
@@ -852,6 +855,11 @@ static const struct hci_uart_proto h5p = {
 	.flush		= h5_flush,
 };
 
+static void h5_pwrseq_put(void *pwrseq)
+{
+	pwrseq_put(pwrseq);
+}
+
 static int h5_serdev_probe(struct serdev_device *serdev)
 {
 	struct device *dev = &serdev->dev;
@@ -886,6 +894,20 @@ static int h5_serdev_probe(struct serdev_device *serdev)
 			return -ENODEV;
 
 		h5->vnd = data->vnd;
+
+		if (of_graph_is_present(dev_of_node(&serdev->ctrl->dev))) {
+			int ret;
+
+			h5->pwrseq = pwrseq_get(&serdev->ctrl->dev, "uart");
+			if (IS_ERR(h5->pwrseq))
+				return dev_err_probe(&serdev->dev, PTR_ERR(h5->pwrseq),
+						     "Failed to get power sequencer\n");
+
+			ret = devm_add_action_or_reset(&serdev->dev, h5_pwrseq_put, h5->pwrseq);
+			if (ret)
+				return dev_err_probe(&serdev->dev, ret,
+						     "Failed to add pwrseq release action\n");
+		}
 	}
 
 	if (data->driver_info & H5_INFO_WAKEUP_DISABLE)
@@ -1011,11 +1033,13 @@ static void h5_btrtl_open(struct h5 *h5)
 	}
 
 	/* The controller needs reset to startup */
+	pwrseq_disable(h5->pwrseq);
 	gpiod_set_value_cansleep(h5->enable_gpio, 0);
 	gpiod_set_value_cansleep(h5->device_wake_gpio, 0);
 	msleep(100);
 
 	/* The controller needs up to 500ms to wakeup */
+	pwrseq_enable(h5->pwrseq);
 	gpiod_set_value_cansleep(h5->enable_gpio, 1);
 	gpiod_set_value_cansleep(h5->device_wake_gpio, 1);
 	msleep(500);
@@ -1030,6 +1054,7 @@ static void h5_btrtl_close(struct h5 *h5)
 
 	gpiod_set_value_cansleep(h5->device_wake_gpio, 0);
 	gpiod_set_value_cansleep(h5->enable_gpio, 0);
+	pwrseq_disable(h5->pwrseq);
 }
 
 /* Suspend/resume support. On many devices the RTL BT device loses power during
@@ -1043,8 +1068,10 @@ static int h5_btrtl_suspend(struct h5 *h5)
 	serdev_device_set_flow_control(h5->hu->serdev, false);
 	gpiod_set_value_cansleep(h5->device_wake_gpio, 0);
 
-	if (test_bit(H5_WAKEUP_DISABLE, &h5->flags))
+	if (test_bit(H5_WAKEUP_DISABLE, &h5->flags)) {
 		gpiod_set_value_cansleep(h5->enable_gpio, 0);
+		pwrseq_disable(h5->pwrseq);
+	}
 
 	return 0;
 }
