@@ -72,25 +72,26 @@ properties:
       M.2 Specification r4.0, sec 3.1.7 for more details.
     maxItems: 1
 
+  # vendor specific signals map to pin numbers in ascending order
   vendor-porta-gpios:
     description: GPIO for the first vendor specific signal (VENDOR_PORTA). This
       signal's functionality is defined by the card manufacturer and may be
       used for proprietary features. Refer the card vendor's documentation for
-      details.
+      details. Pin 38 on slot pinout.
     maxItems: 1
 
   vendor-portb-gpios:
     description: GPIO for the second vendor specific signal (VENDOR_PORTB). This
       signal's functionality is defined by the card manufacturer and may be
       used for proprietary features. Refer the card vendor's documentation for
-      details.
+      details. Pin 40 on slot pinout.
     maxItems: 1
 
   vendor-portc-gpios:
     description: GPIO for the third vendor specific signal (VENDOR_PORTC). This
       signal's functionality is defined by the card manufacturer and may be
       used for proprietary features. Refer the card vendor's documentation for
-      details.
+      details. Pin 42 on slot pinout.
     maxItems: 1
 
   ports:
