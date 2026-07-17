@@ -236,6 +236,49 @@ static const struct pci_device_id pwrseq_m2_pci_ids[] = {
 	{ } /* Sentinel */
 };
 
+static int pwrseq_pcie_m2_copy_rtl_gpio(struct pwrseq_pcie_m2_ctx *ctx,
+					struct pwrseq_pci_dev *pci_dev,
+					struct device_node *np)
+{
+	struct property *new_pp, *pp;
+	int ret;
+
+	/* GPIO property is optional */
+	pp = of_find_property(ctx->of_node, "vendor-porta-gpios", NULL);
+	if (!pp)
+		return 0;
+
+	new_pp = kzalloc_obj(*new_pp);
+	if (!new_pp)
+		return -ENOMEM;
+
+	/* dynamic properties are fully allocated from memory */
+	new_pp->name = kstrdup("device-wake-gpios", GFP_KERNEL);
+	new_pp->value = kmemdup(pp->value, pp->length, GFP_KERNEL);
+	new_pp->length = pp->length;
+	if (!new_pp->name || !new_pp->value) {
+		ret = -ENOMEM;
+		goto err_free;
+	}
+
+	/* mark the property as dynamic */
+	of_property_set_flag(new_pp, OF_DYNAMIC);
+
+	ret = of_changeset_add_property(pci_dev->ocs, np, new_pp);
+	if (ret) {
+		dev_err(ctx->dev, "Failed to copy device-wake-gpios property\n");
+		goto err_free;
+	}
+
+	return 0;
+
+err_free:
+	kfree(new_pp->name);
+	kfree(new_pp->value);
+	kfree(new_pp);
+	return ret;
+}
+
 static int pwrseq_pcie_m2_create_bt_node(struct pwrseq_pcie_m2_ctx *ctx,
 					struct pwrseq_pci_dev *pci_dev,
 					struct device_node *parent,
@@ -270,6 +313,12 @@ static int pwrseq_pcie_m2_create_bt_node(struct pwrseq_pcie_m2_ctx *ctx,
 	if (ret) {
 		dev_err(dev, "Failed to add bluetooth compatible: %d\n", ret);
 		goto err_destroy_changeset;
+	}
+
+	if (id->vendor == PCI_VENDOR_ID_REALTEK) {
+		ret = pwrseq_pcie_m2_copy_rtl_gpio(ctx, pci_dev, np);
+		if (ret)
+			goto err_destroy_changeset;
 	}
 
 	ret = of_changeset_apply(pci_dev->ocs);
