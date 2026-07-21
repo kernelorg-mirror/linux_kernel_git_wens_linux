@@ -1114,6 +1114,21 @@
 			#reset-cells = <1>;
 		};
 
+		codec: codec@7110000 {
+			compatible = "allwinner,sun55i-a523-codec";
+			reg = <0x07110000 0x1000>;
+			interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&mcu_ccu CLK_BUS_MCU_AUDIO_CODEC>,
+				 <&mcu_ccu CLK_MCU_AUDIO_CODEC_DAC>,
+				 <&mcu_ccu CLK_MCU_AUDIO_CODEC_ADC>;
+			clock-names = "apb", "dac", "adc";
+			resets = <&mcu_ccu RST_BUS_MCU_AUDIO_CODEC>;
+			dmas = <&mcu_dma 7>, <&mcu_dma 7>;
+			dma-names = "rx", "tx";
+			#sound-dai-cells = <1>;
+			status = "disabled";
+		};
+
 		i2s0: i2s@7112000 {
 			compatible = "allwinner,sun55i-a523-i2s",
 				     "allwinner,sun50i-r329-i2s";
