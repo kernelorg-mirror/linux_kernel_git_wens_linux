@@ -2580,13 +2580,6 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 				     "Failed to get hp-det gpio\n");
 
 	/* reg_field setup */
-	scodec->reg_adc_fifoc = devm_regmap_field_alloc(&pdev->dev,
-							scodec->regmap,
-							quirks->reg_adc_fifoc);
-	if (IS_ERR(scodec->reg_adc_fifoc))
-		return dev_err_probe(&pdev->dev, PTR_ERR(scodec->reg_adc_fifoc),
-				     "Failed to create regmap fields\n");
-
 	scodec->reg_dac_fifoc = devm_regmap_field_alloc(&pdev->dev,
 							scodec->regmap,
 							quirks->reg_dac_fifoc);
@@ -2600,6 +2593,13 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 	scodec->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 
 	if (!quirks->playback_only) {
+		scodec->reg_adc_fifoc = devm_regmap_field_alloc(&pdev->dev,
+				scodec->regmap,
+				quirks->reg_adc_fifoc);
+		if (IS_ERR(scodec->reg_adc_fifoc))
+			return dev_err_probe(&pdev->dev, PTR_ERR(scodec->reg_adc_fifoc),
+					     "Failed to create regmap fields\n");
+
 		/* DMA configuration for RX FIFO */
 		scodec->capture_dma_data.addr = res->start +
 						quirks->reg_adc_rxdata;
