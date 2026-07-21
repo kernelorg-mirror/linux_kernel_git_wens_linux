@@ -95,6 +95,16 @@
 	};
 };
 
+&codec {
+	audio-routing = "Headphone Jack", "HP",
+			"Headphone Jack", "HBIAS",
+			"Headset Mic", "HBIAS",
+			"MIC3", "Headset Mic";
+	widgets = "Headphone", "Headphone Jack",
+		  "Microphone", "Headset Mic";
+	status = "okay";
+};
+
 &ehci0 {
 	status = "okay";
 };
