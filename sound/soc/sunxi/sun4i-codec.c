@@ -368,11 +368,16 @@ struct sun4i_codec {
 
 	/* ADC_FIFOC register is at different offset on different SoCs */
 	struct regmap_field *reg_adc_fifoc;
+	struct regmap_field *reg_adc_fifoc_trigger;
 	/* DAC_FIFOC register is at different offset on different SoCs */
 	struct regmap_field *reg_dac_fifoc;
 
 	struct snd_dmaengine_dai_dma_data	capture_dma_data;
 	struct snd_dmaengine_dai_dma_data	playback_dma_data;
+
+	u32 reg_adc_fifoc_drq_en;	/* ADC FIFO DRQ enable bit offset */
+	u32 reg_adc_fifoc_mono_en;	/* ADC FIFO mono enable bit offset */
+	u32 reg_adc_fifoc_sample_bits;	/* ADC FIFO sample size bit offset */
 };
 
 static void sun4i_codec_start_playback(struct sun4i_codec *scodec)
@@ -396,15 +401,13 @@ static void sun4i_codec_stop_playback(struct sun4i_codec *scodec)
 static void sun4i_codec_start_capture(struct sun4i_codec *scodec)
 {
 	/* Enable ADC DRQ */
-	regmap_field_set_bits(scodec->reg_adc_fifoc,
-			      BIT(SUN4I_CODEC_ADC_FIFOC_ADC_DRQ_EN));
+	regmap_field_set_bits(scodec->reg_adc_fifoc, scodec->reg_adc_fifoc_drq_en);
 }
 
 static void sun4i_codec_stop_capture(struct sun4i_codec *scodec)
 {
 	/* Disable ADC DRQ */
-	regmap_field_clear_bits(scodec->reg_adc_fifoc,
-				 BIT(SUN4I_CODEC_ADC_FIFOC_ADC_DRQ_EN));
+	regmap_field_clear_bits(scodec->reg_adc_fifoc, scodec->reg_adc_fifoc_drq_en);
 }
 
 static int sun4i_codec_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -452,9 +455,7 @@ static int sun4i_codec_prepare_capture(struct snd_pcm_substream *substream,
 
 
 	/* Set RX FIFO trigger level */
-	regmap_field_update_bits(scodec->reg_adc_fifoc,
-				 0xf << SUN4I_CODEC_ADC_FIFOC_RX_TRIG_LEVEL,
-				 0x7 << SUN4I_CODEC_ADC_FIFOC_RX_TRIG_LEVEL);
+	regmap_field_write(scodec->reg_adc_fifoc_trigger, 0x7);
 
 	/*
 	 * FIXME: Undocumented in the datasheet, but
@@ -607,15 +608,15 @@ static int sun4i_codec_hw_params_capture(struct sun4i_codec *scodec,
 	/* Set the number of channels we want to use */
 	if (params_channels(params) == 1)
 		regmap_field_set_bits(scodec->reg_adc_fifoc,
-					 BIT(SUN4I_CODEC_ADC_FIFOC_MONO_EN));
+				      scodec->reg_adc_fifoc_mono_en);
 	else
 		regmap_field_clear_bits(scodec->reg_adc_fifoc,
-					 BIT(SUN4I_CODEC_ADC_FIFOC_MONO_EN));
+					scodec->reg_adc_fifoc_mono_en);
 
 	/* Set the number of sample bits to either 16 or 24 bits */
 	if (hw_param_interval(params, SNDRV_PCM_HW_PARAM_SAMPLE_BITS)->min == 32) {
 		regmap_field_set_bits(scodec->reg_adc_fifoc,
-				   BIT(SUN4I_CODEC_ADC_FIFOC_RX_SAMPLE_BITS));
+				      scodec->reg_adc_fifoc_sample_bits);
 
 		regmap_field_clear_bits(scodec->reg_adc_fifoc,
 				   BIT(SUN4I_CODEC_ADC_FIFOC_RX_FIFO_MODE));
@@ -623,7 +624,7 @@ static int sun4i_codec_hw_params_capture(struct sun4i_codec *scodec,
 		scodec->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	} else {
 		regmap_field_clear_bits(scodec->reg_adc_fifoc,
-				   BIT(SUN4I_CODEC_ADC_FIFOC_RX_SAMPLE_BITS));
+					scodec->reg_adc_fifoc_sample_bits);
 
 		/* Fill most significant bits with valid data MSB */
 		regmap_field_set_bits(scodec->reg_adc_fifoc,
@@ -2338,6 +2339,7 @@ struct sun4i_codec_quirks {
 	const struct snd_soc_component_driver *codec;
 	struct snd_soc_card * (*create_card)(struct device *dev);
 	struct reg_field reg_adc_fifoc;	/* used for regmap_field */
+	struct reg_field reg_adc_fifoc_trigger; /* ADC FIFO trigger level */
 	struct reg_field reg_dac_fifoc;	/* used for regmap_field */
 	unsigned int reg_dac_txdata;	/* TX FIFO offset for DMA config */
 	unsigned int reg_adc_rxdata;	/* RX FIFO offset for DMA config */
@@ -2346,6 +2348,9 @@ struct sun4i_codec_quirks {
 	bool has_split_clks;
 	u8 dma_max_burst;
 	u8 max_bits;
+	s8 reg_adc_fifoc_drq_en;	/* ADC FIFO DRQ enable bit offset */
+	s8 reg_adc_fifoc_mono_en;	/* ADC FIFO mono enable bit offset */
+	s8 reg_adc_fifoc_sample_bits;	/* ADC FIFO sample size bit offset */
 };
 
 static const struct sun4i_codec_quirks sun4i_codec_quirks = {
@@ -2354,9 +2359,13 @@ static const struct sun4i_codec_quirks sun4i_codec_quirks = {
 	.create_card	= sun4i_codec_create_card,
 	.reg_adc_fifoc	= REG_FIELD(SUN4I_CODEC_ADC_FIFOC, 0, 31),
 	.reg_dac_fifoc	= REG_FIELD(SUN4I_CODEC_DAC_FIFOC, 0, 31),
+	.reg_adc_fifoc_trigger = REG_FIELD(SUN4I_CODEC_ADC_FIFOC, 8, 12),
 	.reg_dac_txdata	= SUN4I_CODEC_DAC_TXDATA,
 	.reg_adc_rxdata	= SUN4I_CODEC_ADC_RXDATA,
 	.dma_max_burst	= SUN4I_DMA_MAX_BURST,
+	.reg_adc_fifoc_drq_en = SUN4I_CODEC_ADC_FIFOC_ADC_DRQ_EN,
+	.reg_adc_fifoc_mono_en = SUN4I_CODEC_ADC_FIFOC_MONO_EN,
+	.reg_adc_fifoc_sample_bits = SUN4I_CODEC_ADC_FIFOC_RX_SAMPLE_BITS,
 };
 
 static const struct sun4i_codec_quirks sun6i_a31_codec_quirks = {
@@ -2365,10 +2374,14 @@ static const struct sun4i_codec_quirks sun6i_a31_codec_quirks = {
 	.create_card	= sun6i_codec_create_card,
 	.reg_adc_fifoc	= REG_FIELD(SUN6I_CODEC_ADC_FIFOC, 0, 31),
 	.reg_dac_fifoc	= REG_FIELD(SUN4I_CODEC_DAC_FIFOC, 0, 31),
+	.reg_adc_fifoc_trigger = REG_FIELD(SUN6I_CODEC_ADC_FIFOC, 8, 12),
 	.reg_dac_txdata	= SUN4I_CODEC_DAC_TXDATA,
 	.reg_adc_rxdata	= SUN6I_CODEC_ADC_RXDATA,
 	.has_reset	= true,
 	.dma_max_burst	= SUN4I_DMA_MAX_BURST,
+	.reg_adc_fifoc_drq_en = SUN4I_CODEC_ADC_FIFOC_ADC_DRQ_EN,
+	.reg_adc_fifoc_mono_en = SUN4I_CODEC_ADC_FIFOC_MONO_EN,
+	.reg_adc_fifoc_sample_bits = SUN4I_CODEC_ADC_FIFOC_RX_SAMPLE_BITS,
 };
 
 static const struct sun4i_codec_quirks sun7i_codec_quirks = {
@@ -2377,9 +2390,13 @@ static const struct sun4i_codec_quirks sun7i_codec_quirks = {
 	.create_card	= sun4i_codec_create_card,
 	.reg_adc_fifoc	= REG_FIELD(SUN4I_CODEC_ADC_FIFOC, 0, 31),
 	.reg_dac_fifoc	= REG_FIELD(SUN4I_CODEC_DAC_FIFOC, 0, 31),
+	.reg_adc_fifoc_trigger = REG_FIELD(SUN4I_CODEC_ADC_FIFOC, 8, 12),
 	.reg_dac_txdata	= SUN4I_CODEC_DAC_TXDATA,
 	.reg_adc_rxdata	= SUN4I_CODEC_ADC_RXDATA,
 	.dma_max_burst	= SUN4I_DMA_MAX_BURST,
+	.reg_adc_fifoc_drq_en = SUN4I_CODEC_ADC_FIFOC_ADC_DRQ_EN,
+	.reg_adc_fifoc_mono_en = SUN4I_CODEC_ADC_FIFOC_MONO_EN,
+	.reg_adc_fifoc_sample_bits = SUN4I_CODEC_ADC_FIFOC_RX_SAMPLE_BITS,
 };
 
 static const struct sun4i_codec_quirks sun8i_a23_codec_quirks = {
@@ -2388,10 +2405,14 @@ static const struct sun4i_codec_quirks sun8i_a23_codec_quirks = {
 	.create_card	= sun8i_a23_codec_create_card,
 	.reg_adc_fifoc	= REG_FIELD(SUN6I_CODEC_ADC_FIFOC, 0, 31),
 	.reg_dac_fifoc	= REG_FIELD(SUN4I_CODEC_DAC_FIFOC, 0, 31),
+	.reg_adc_fifoc_trigger = REG_FIELD(SUN6I_CODEC_ADC_FIFOC, 8, 12),
 	.reg_dac_txdata	= SUN4I_CODEC_DAC_TXDATA,
 	.reg_adc_rxdata	= SUN6I_CODEC_ADC_RXDATA,
 	.has_reset	= true,
 	.dma_max_burst	= SUN4I_DMA_MAX_BURST,
+	.reg_adc_fifoc_drq_en = SUN4I_CODEC_ADC_FIFOC_ADC_DRQ_EN,
+	.reg_adc_fifoc_mono_en = SUN4I_CODEC_ADC_FIFOC_MONO_EN,
+	.reg_adc_fifoc_sample_bits = SUN4I_CODEC_ADC_FIFOC_RX_SAMPLE_BITS,
 };
 
 static const struct sun4i_codec_quirks sun8i_h3_codec_quirks = {
@@ -2405,10 +2426,14 @@ static const struct sun4i_codec_quirks sun8i_h3_codec_quirks = {
 	.create_card	= sun8i_h3_codec_create_card,
 	.reg_adc_fifoc	= REG_FIELD(SUN6I_CODEC_ADC_FIFOC, 0, 31),
 	.reg_dac_fifoc	= REG_FIELD(SUN4I_CODEC_DAC_FIFOC, 0, 31),
+	.reg_adc_fifoc_trigger = REG_FIELD(SUN6I_CODEC_ADC_FIFOC, 8, 12),
 	.reg_dac_txdata	= SUN8I_H3_CODEC_DAC_TXDATA,
 	.reg_adc_rxdata	= SUN6I_CODEC_ADC_RXDATA,
 	.has_reset	= true,
 	.dma_max_burst	= SUN4I_DMA_MAX_BURST,
+	.reg_adc_fifoc_drq_en = SUN4I_CODEC_ADC_FIFOC_ADC_DRQ_EN,
+	.reg_adc_fifoc_mono_en = SUN4I_CODEC_ADC_FIFOC_MONO_EN,
+	.reg_adc_fifoc_sample_bits = SUN4I_CODEC_ADC_FIFOC_RX_SAMPLE_BITS,
 };
 
 static const struct sun4i_codec_quirks sun8i_v3s_codec_quirks = {
@@ -2421,10 +2446,14 @@ static const struct sun4i_codec_quirks sun8i_v3s_codec_quirks = {
 	.create_card	= sun8i_v3s_codec_create_card,
 	.reg_adc_fifoc	= REG_FIELD(SUN6I_CODEC_ADC_FIFOC, 0, 31),
 	.reg_dac_fifoc	= REG_FIELD(SUN4I_CODEC_DAC_FIFOC, 0, 31),
+	.reg_adc_fifoc_trigger = REG_FIELD(SUN6I_CODEC_ADC_FIFOC, 8, 12),
 	.reg_dac_txdata	= SUN8I_H3_CODEC_DAC_TXDATA,
 	.reg_adc_rxdata	= SUN6I_CODEC_ADC_RXDATA,
 	.has_reset	= true,
 	.dma_max_burst	= SUN4I_DMA_MAX_BURST,
+	.reg_adc_fifoc_drq_en = SUN4I_CODEC_ADC_FIFOC_ADC_DRQ_EN,
+	.reg_adc_fifoc_mono_en = SUN4I_CODEC_ADC_FIFOC_MONO_EN,
+	.reg_adc_fifoc_sample_bits = SUN4I_CODEC_ADC_FIFOC_RX_SAMPLE_BITS,
 };
 
 static const struct sun4i_codec_quirks sun50i_h616_codec_quirks = {
@@ -2437,6 +2466,9 @@ static const struct sun4i_codec_quirks sun50i_h616_codec_quirks = {
 	.playback_only	= true,
 	.dma_max_burst	= SUN4I_DMA_MAX_BURST,
 	.max_bits	= 20,
+	.reg_adc_fifoc_drq_en = -1,
+	.reg_adc_fifoc_mono_en = -1,
+	.reg_adc_fifoc_sample_bits = -1,
 };
 
 static const struct sun4i_codec_quirks sun55i_a523_codec_quirks = {
@@ -2459,10 +2491,14 @@ static const struct sun4i_codec_quirks suniv_f1c100s_codec_quirks = {
 	.create_card	= suniv_codec_create_card,
 	.reg_adc_fifoc	= REG_FIELD(SUNIV_CODEC_ADC_FIFOC, 0, 31),
 	.reg_dac_fifoc	= REG_FIELD(SUN4I_CODEC_DAC_FIFOC, 0, 31),
+	.reg_adc_fifoc_trigger = REG_FIELD(SUN6I_CODEC_ADC_FIFOC, 8, 12),
 	.reg_dac_txdata	= SUN4I_CODEC_DAC_TXDATA,
 	.reg_adc_rxdata	= SUNIV_CODEC_ADC_RXDATA,
 	.has_reset	= true,
 	.dma_max_burst	= SUNIV_DMA_MAX_BURST,
+	.reg_adc_fifoc_drq_en = SUN4I_CODEC_ADC_FIFOC_ADC_DRQ_EN,
+	.reg_adc_fifoc_mono_en = SUN4I_CODEC_ADC_FIFOC_MONO_EN,
+	.reg_adc_fifoc_sample_bits = SUN4I_CODEC_ADC_FIFOC_RX_SAMPLE_BITS,
 };
 
 static const struct of_device_id sun4i_codec_of_match[] = {
@@ -2600,11 +2636,29 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 			return dev_err_probe(&pdev->dev, PTR_ERR(scodec->reg_adc_fifoc),
 					     "Failed to create regmap fields\n");
 
+		scodec->reg_adc_fifoc_trigger =
+			devm_regmap_field_alloc(&pdev->dev, scodec->regmap,
+						quirks->reg_adc_fifoc_trigger);
+		if (IS_ERR(scodec->reg_adc_fifoc_trigger)) {
+			ret = PTR_ERR(scodec->reg_adc_fifoc_trigger);
+			dev_err(&pdev->dev, "Failed to create regmap fields: %d\n",
+				ret);
+			return ret;
+		}
+
 		/* DMA configuration for RX FIFO */
 		scodec->capture_dma_data.addr = res->start +
 						quirks->reg_adc_rxdata;
 		scodec->capture_dma_data.maxburst = quirks->dma_max_burst;
 		scodec->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+
+		/* FIFOC bits */
+		if (quirks->reg_adc_fifoc_drq_en >= 0)
+			scodec->reg_adc_fifoc_drq_en = BIT(quirks->reg_adc_fifoc_drq_en);
+		if (quirks->reg_adc_fifoc_mono_en >= 0)
+			scodec->reg_adc_fifoc_mono_en = BIT(quirks->reg_adc_fifoc_mono_en);
+		if (quirks->reg_adc_fifoc_sample_bits >= 0)
+			scodec->reg_adc_fifoc_sample_bits = BIT(quirks->reg_adc_fifoc_sample_bits);
 	}
 
 	/* Handle different maximum sample sizes */
