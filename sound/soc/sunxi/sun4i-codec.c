@@ -2160,7 +2160,8 @@ struct sun4i_codec_quirks {
 	bool has_reset;
 	bool playback_only;
 	bool has_split_clks;
-	u32 dma_max_burst;
+	u8 dma_max_burst;
+	u8 max_bits;
 };
 
 static const struct sun4i_codec_quirks sun4i_codec_quirks = {
@@ -2251,6 +2252,7 @@ static const struct sun4i_codec_quirks sun50i_h616_codec_quirks = {
 	.has_reset	= true,
 	.playback_only	= true,
 	.dma_max_burst	= SUN4I_DMA_MAX_BURST,
+	.max_bits	= 20,
 };
 
 static const struct sun4i_codec_quirks suniv_f1c100s_codec_quirks = {
@@ -2401,6 +2403,12 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 						quirks->reg_adc_rxdata;
 		scodec->capture_dma_data.maxburst = quirks->dma_max_burst;
 		scodec->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+	}
+
+	/* Handle different maximum sample sizes */
+	if (quirks->max_bits) {
+		sun4i_codec_dai.playback.sig_bits = quirks->max_bits;
+		sun4i_codec_dai.capture.sig_bits = quirks->max_bits;
 	}
 
 	ret = devm_snd_soc_register_component(&pdev->dev, quirks->codec,
