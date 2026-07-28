@@ -181,6 +181,7 @@
 		status = "disabled";
 
 		simple-audio-card,dai-link@0 {
+			reg = <0>;
 			format = "i2s";
 			frame-master = <&link0_cpu>;
 			bitclock-master = <&link0_cpu>;

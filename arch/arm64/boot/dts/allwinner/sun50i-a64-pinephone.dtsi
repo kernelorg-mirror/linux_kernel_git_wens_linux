@@ -492,6 +492,7 @@
 			"MIC2", "Headset Microphone";
 
 	simple-audio-card,dai-link@2 {
+		reg = <2>;
 		format = "dsp_a";
 		frame-master = <&link2_codec>;
 		bitclock-master = <&link2_codec>;
