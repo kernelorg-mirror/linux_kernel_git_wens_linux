@@ -1233,8 +1233,6 @@
 			phys = <&dphy>;
 			phy-names = "dphy";
 			status = "disabled";
-			#address-cells = <1>;
-			#size-cells = <0>;
 
 			port {
 				dsi_in_tcon0: endpoint {

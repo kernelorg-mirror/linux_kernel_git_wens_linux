@@ -158,6 +158,8 @@
 };
 
 &dsi {
+	#address-cells = <1>;
+	#size-cells = <0>;
 	vcc-dsi-supply = <&reg_dldo1>;
 	status = "okay";
 
