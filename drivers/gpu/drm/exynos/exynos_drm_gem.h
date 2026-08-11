@@ -30,9 +30,6 @@ struct exynos_drm_gem {
 	unsigned int			flags;
 };
 
-/* destroy a buffer with gem object */
-void exynos_drm_gem_destroy(struct exynos_drm_gem *exynos_gem);
-
 /* create a new buffer with gem object */
 struct exynos_drm_gem *exynos_drm_gem_create(struct drm_device *dev,
 					     unsigned int flags,

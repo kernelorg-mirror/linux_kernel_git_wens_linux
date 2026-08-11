@@ -92,7 +92,7 @@ static int exynos_drm_gem_handle_create(struct drm_gem_object *obj,
 	return 0;
 }
 
-void exynos_drm_gem_destroy(struct exynos_drm_gem *exynos_gem)
+static void exynos_drm_gem_destroy(struct exynos_drm_gem *exynos_gem)
 {
 	struct drm_gem_dma_object *dma_obj = &exynos_gem->base;
 
