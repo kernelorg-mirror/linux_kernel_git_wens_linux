@@ -20,7 +20,6 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
-#include <linux/reset.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -105,7 +104,6 @@ struct sun50i_iommu {
 
 	struct device *dev;
 	void __iomem *base;
-	struct reset_control *reset;
 	struct clk *clk;
 
 	struct iommu_domain *domain;
@@ -434,13 +432,9 @@ static int sun50i_iommu_enable(struct sun50i_iommu *iommu)
 
 	sun50i_domain = to_sun50i_domain(iommu->domain);
 
-	ret = reset_control_deassert(iommu->reset);
-	if (ret)
-		return ret;
-
 	ret = clk_prepare_enable(iommu->clk);
 	if (ret)
-		goto err_reset_assert;
+		return ret;
 
 	spin_lock_irqsave(&iommu->iommu_lock, flags);
 
@@ -500,9 +494,6 @@ static int sun50i_iommu_enable(struct sun50i_iommu *iommu)
 err_clk_disable:
 	clk_disable_unprepare(iommu->clk);
 
-err_reset_assert:
-	reset_control_assert(iommu->reset);
-
 	return ret;
 }
 
@@ -518,7 +509,6 @@ static void sun50i_iommu_disable(struct sun50i_iommu *iommu)
 	spin_unlock_irqrestore(&iommu->iommu_lock, flags);
 
 	clk_disable_unprepare(iommu->clk);
-	reset_control_assert(iommu->reset);
 }
 
 static void *sun50i_iommu_alloc_page_table(struct sun50i_iommu *iommu,
@@ -1032,13 +1022,6 @@ static int sun50i_iommu_probe(struct platform_device *pdev)
 	if (IS_ERR(iommu->clk)) {
 		dev_err(&pdev->dev, "Couldn't get our clock.\n");
 		ret = PTR_ERR(iommu->clk);
-		goto err_free_cache;
-	}
-
-	iommu->reset = devm_reset_control_get(&pdev->dev, NULL);
-	if (IS_ERR(iommu->reset)) {
-		dev_err(&pdev->dev, "Couldn't get our reset line.\n");
-		ret = PTR_ERR(iommu->reset);
 		goto err_free_cache;
 	}
 
