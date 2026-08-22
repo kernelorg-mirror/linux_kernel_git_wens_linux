@@ -16,6 +16,7 @@
 #include <linux/ioport.h>
 #include <linux/log2.h>
 #include <linux/module.h>
+#include <linux/memblock.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
@@ -254,7 +255,13 @@ enum sun50i_iommu_aci {
 
 static phys_addr_t sun50i_pte_get_page_address(u32 pte)
 {
-	return (phys_addr_t)pte & SUN50I_PTE_PAGE_ADDRESS_MASK;
+	phys_addr_t pa = pte & SUN50I_PTE_PAGE_ADDRESS_MASK;
+
+	/* un-truncate the physical address */
+	if (pa < memblock_start_of_DRAM())
+		pa |= BIT(32);
+
+	return pa;
 }
 
 static enum sun50i_iommu_aci sun50i_get_pte_aci(u32 pte)
@@ -592,11 +599,22 @@ static int sun50i_iommu_map(struct iommu_domain *domain, unsigned long iova,
 	u32 *page_table, *pte_addr;
 	int ret = 0;
 
-	/* the IOMMU can only handle 32-bit addresses, both input and output */
-	if ((uint64_t)paddr >> 32) {
+	/*
+	 * The IOMMU can only handle 32-bit addresses, both input and output.
+	 * However the lowest portion of physical address space is for I/O
+	 * devices. Use this lower range to map memory that exceeds the 32-bit
+	 * physical address range with address wraparound by the bus.
+	 */
+	if ((uint64_t)(paddr - memblock_start_of_DRAM()) >> 32) {
 		ret = -EINVAL;
 		dev_warn_once(iommu->dev,
 			      "attempt to map address beyond 4GB\n");
+		goto out;
+	}
+
+	if (paddr < memblock_start_of_DRAM()) {
+		ret = -EINVAL;
+		dev_warn_once(iommu->dev, "attempt to map I/O address\n");
 		goto out;
 	}
 
