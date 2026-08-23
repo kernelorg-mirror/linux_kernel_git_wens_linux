@@ -768,6 +768,21 @@ static int dw8250_probe(struct platform_device *pdev)
 	if (!data->skip_autocfg)
 		dw8250_setup_port(p);
 
+	/* Try to pick up features from the device tree if auto config failed */
+	if (!p->fifosize) {
+		u32 prop;
+
+		if (device_property_read_u32(dev, "fifo-size", &prop) == 0) {
+			p->type = PORT_16550A;
+			p->flags |= UPF_FIXED_TYPE;
+			p->fifosize = prop;
+			up->capabilities = UART_CAP_FIFO;
+		}
+
+		if (device_property_read_bool(dev, "auto-flow-control"))
+			up->capabilities |= UART_CAP_AFE;
+	}
+
 	/* If we have a valid fifosize, try hooking up DMA */
 	if (p->fifosize) {
 		data->data.dma.rxconf.src_maxburst = p->fifosize / 4;

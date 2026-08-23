@@ -120,6 +120,21 @@
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x0 0x40000000>;
 
+		video-codec@1c0e000 {
+			compatible = "allwinner,sun50i-h616-video-engine";
+			reg = <0x01c0e000 0x1000>;
+			clocks = <&ccu CLK_BUS_VE>, <&ccu CLK_VE>,
+				 <&ccu CLK_MBUS_VE>;
+			clock-names = "ahb", "mod", "ram";
+			resets = <&ccu RST_BUS_VE>;
+			interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&pck600 PD_VE>;
+			iommus = <&iommu 3>, <&iommu 2>;
+			/*
+			allwinner,sram = <&ve_sram 1>, <&sram_c 1>;
+			*/
+		};
+
 		gpu: gpu@1800000 {
 			compatible = "allwinner,sun55i-a523-mali",
 				     "arm,mali-valhall-jm";
@@ -326,6 +341,20 @@
 				allwinner,pinmux = <5>;
 			};
 
+			/omit-if-no-ref/
+			spi2_pe_pins: spi2-pe-pins {
+				pins = "PE12", "PE13", "PE14";
+				function = "spi2";
+				allwinner,pinmux = <4>;
+			};
+
+			/omit-if-no-ref/
+			spi2_cs0_pc_pin: spi2-cs0-pc-pin {
+				pins = "PE11";
+				function = "spi2";
+				allwinner,pinmux = <4>;
+			};
+
 			uart0_pb_pins: uart0-pb-pins {
 				pins = "PB9", "PB10";
 				allwinner,pinmux = <2>;
@@ -397,6 +426,15 @@
 			status = "disabled";
 		};
 
+		iommu: iommu@2010000 {
+			compatible = "allwinner,sun55i-a523-iommu",
+				     "allwinner,sun50i-h616-iommu";
+			reg = <0x2010000 0x10000>;
+			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_IOMMU>;
+			#iommu-cells = <1>;
+		};
+
 		wdt: watchdog@2050000 {
 			compatible = "allwinner,sun55i-a523-wdt";
 			reg = <0x2050000 0x20>;
@@ -412,6 +450,8 @@
 			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			fifo-size = <64>;
+			auto-flow-control;
 			clocks = <&ccu CLK_BUS_UART0>;
 			resets = <&ccu RST_BUS_UART0>;
 			dmas = <&dma 14>, <&dma 14>;
@@ -425,6 +465,8 @@
 			interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			fifo-size = <128>;
+			auto-flow-control;
 			clocks = <&ccu CLK_BUS_UART1>;
 			resets = <&ccu RST_BUS_UART1>;
 			dmas = <&dma 15>, <&dma 15>;
@@ -438,6 +480,8 @@
 			interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			fifo-size = <128>;
+			auto-flow-control;
 			clocks = <&ccu CLK_BUS_UART2>;
 			resets = <&ccu RST_BUS_UART2>;
 			dmas = <&dma 16>, <&dma 16>;
@@ -451,6 +495,8 @@
 			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			fifo-size = <128>;
+			auto-flow-control;
 			clocks = <&ccu CLK_BUS_UART3>;
 			resets = <&ccu RST_BUS_UART3>;
 			dmas = <&dma 17>, <&dma 17>;
@@ -464,6 +510,8 @@
 			interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			fifo-size = <128>;
+			auto-flow-control;
 			clocks = <&ccu CLK_BUS_UART4>;
 			resets = <&ccu RST_BUS_UART4>;
 			dmas = <&dma 18>, <&dma 18>;
@@ -477,6 +525,8 @@
 			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			fifo-size = <128>;
+			auto-flow-control;
 			clocks = <&ccu CLK_BUS_UART5>;
 			resets = <&ccu RST_BUS_UART5>;
 			dmas = <&dma 19>, <&dma 19>;
@@ -490,6 +540,8 @@
 			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			fifo-size = <128>;
+			auto-flow-control;
 			clocks = <&ccu CLK_BUS_UART6>;
 			resets = <&ccu RST_BUS_UART6>;
 			dmas = <&dma 20>, <&dma 20>;
@@ -503,6 +555,8 @@
 			interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			fifo-size = <128>;
+			auto-flow-control;
 			clocks = <&ccu CLK_BUS_UART7>;
 			resets = <&ccu RST_BUS_UART7>;
 			dmas = <&dma 21>, <&dma 21>;

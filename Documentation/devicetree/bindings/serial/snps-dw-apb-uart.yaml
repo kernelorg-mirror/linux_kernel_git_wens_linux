@@ -163,6 +163,17 @@ properties:
       register. Define this if your serial port does not use this pin.
     type: boolean
 
+  fifo-size:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: The fifo size of the UART.
+
+  auto-flow-control:
+    type: boolean
+    description: |
+      One way to enable automatic flow control support. The driver is
+      allowed to detect support for the capability even without this
+      property.
+
 required:
   - compatible
   - reg
