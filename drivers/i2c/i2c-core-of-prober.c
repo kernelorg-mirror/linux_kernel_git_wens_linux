@@ -160,6 +160,8 @@ int i2c_of_probe_component(struct device *dev, const struct i2c_of_probe_cfg *cf
 	if (ret)
 		goto out_put_i2c_adapter;
 
+	trace_printk("%s: enabled resources\n", dev_name(dev));
+
 	device_found = false;
 	for_each_child_of_node_with_prefix(i2c_node, node, type) {
 		union i2c_smbus_data data;
@@ -175,11 +177,13 @@ int i2c_of_probe_component(struct device *dev, const struct i2c_of_probe_cfg *cf
 			ops->cleanup_early(dev, ctx);
 		device_found = true;
 		ret = i2c_of_probe_enable_node(dev, node);
+		trace_printk("%s: enabled node %pOF\n", dev_name(dev), node);
 		break;
 	}
 
 	if (ops->cleanup)
 		ops->cleanup(dev, ctx, device_found && !ret);
+	trace_printk("%s: cleaned up\n", dev_name(dev));
 out_put_i2c_adapter:
 	i2c_put_adapter(i2c);
 

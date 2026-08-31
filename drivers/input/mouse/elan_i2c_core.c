@@ -1234,6 +1234,8 @@ static int elan_probe(struct i2c_client *client)
 	unsigned long irqflags;
 	int error;
 
+	trace_printk("%s: start probe\n", dev_name(dev));
+
 	if (IS_ENABLED(CONFIG_MOUSE_ELAN_I2C_I2C) &&
 	    i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		transport_ops = &elan_i2c_ops;
@@ -1265,6 +1267,7 @@ static int elan_probe(struct i2c_client *client)
 	if (error)
 		return dev_err_probe(dev, error, "Failed to get regulators\n");
 
+	trace_printk("%s: enabling regulators\n", dev_name(dev));
 	error = regulator_bulk_enable_and_wait(ARRAY_SIZE(data->supplies), data->supplies,
 					       ETP_POWER_ON_DELAY_US);
 	if (error) {

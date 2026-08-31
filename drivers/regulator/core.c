@@ -2207,6 +2207,9 @@ static int _regulator_is_enabled_recursive(struct regulator_dev *rdev)
 	int ret;
 
 	ret = _regulator_is_enabled(rdev);
+	trace_printk("%s is %s (%d)\n", rdev_get_name(rdev),
+		     ret < 0 ? "error" : str_enabled_disabled(ret > 0),
+		     ret);
 	if (ret <= 0)
 		return ret;
 
@@ -2415,7 +2418,10 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 	 * constraints, and thus .last_on timestamp is still invalid.
 	 */
 	if (!rdev->last_on && _regulator_is_enabled_recursive(rdev) > 0)
+	{
+		trace_printk("%s: set last_on for regulator left on\n", rdev_get_name(rdev));
 		rdev->last_on = ktime_get_boottime();
+	}
 
 	regulator_unlock_dependent(rdev, &ww_ctx);
 
@@ -3109,6 +3115,7 @@ static int _regulator_do_enable(struct regulator_dev *rdev)
 	}
 
 	rdev->last_on = ktime_get_boottime();
+	trace_printk("%s: enabled, last_on updated\n", rdev_get_name(rdev));
 
 	trace_regulator_enable_complete(rdev_get_name(rdev));
 
@@ -3236,9 +3243,17 @@ static int _regulator_enable(struct regulator *regulator, ktime_t *last_on)
 			 * is no supply.
 			 */
 			if (rdev->last_on < supply_last_on)
+			{
 				rdev->last_on = supply_last_on;
+				trace_printk("%s: Update last_on timestamp to supply's\n",
+					     rdev_get_name(rdev));
+			}
 			if (!rdev->last_on)
+			{
 				rdev->last_on = ktime_get_boottime();
+				trace_printk("%s: Set last_on timestamp for enabled regulator\n",
+					     rdev_get_name(rdev));
+			}
 		}
 	}
 
@@ -3329,6 +3344,8 @@ static int _regulator_do_disable(struct regulator_dev *rdev)
 		rdev->last_off = ktime_get_boottime();
 
 	trace_regulator_disable_complete(rdev_get_name(rdev));
+
+	trace_printk("%s: disabled\n", rdev_get_name(rdev));
 
 	return 0;
 }
@@ -6339,7 +6356,10 @@ regulator_register(struct device *dev,
 	 */
 	regulator_lock(rdev);
 	if (!rdev->supply_name && !rdev->last_on && _regulator_is_enabled(rdev) > 0)
+	{
 		rdev->last_on = ktime_get_boottime();
+		trace_printk("%s: set last_on for dangling regulator left on\n", rdev_get_name(rdev));
+	}
 	regulator_unlock(rdev);
 
 	rdev_init_debugfs(rdev);
@@ -6692,6 +6712,7 @@ static void regulator_summary_show_subtree(struct seq_file *s,
 		}
 	}
 
+	seq_printf(s, "%13llu\n", ktime_to_ns(rdev->last_on));
 	seq_puts(s, "\n");
 
 	list_for_each_entry(consumer, &rdev->consumer_list, list) {
@@ -6844,8 +6865,8 @@ static int regulator_summary_show(struct seq_file *s, void *data)
 {
 	struct ww_acquire_ctx ww_ctx;
 
-	seq_puts(s, " regulator                      use open bypass  opmode voltage current     min     max\n");
-	seq_puts(s, "---------------------------------------------------------------------------------------\n");
+	seq_puts(s, " regulator                      use open bypass  opmode voltage current     min     max       last_on\n");
+	seq_puts(s, "-----------------------------------------------------------------------------------------------------\n");
 
 	regulator_summary_lock(&ww_ctx);
 
