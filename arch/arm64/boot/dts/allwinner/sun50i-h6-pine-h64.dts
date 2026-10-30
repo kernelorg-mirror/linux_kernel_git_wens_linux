@@ -79,6 +79,32 @@
 		gpio = <&r_pio 0 5 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
+
+	usb3-a-connector {
+		compatible = "usb-a-connector";
+		vbus-supply = <&reg_usb_vbus>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@1 {
+				reg = <1>;
+
+				usb3_a_hs: endpoint {
+					remote-endpoint = <&dwc3_hs>;
+				};
+			};
+
+			port@2 {
+				reg = <2>;
+
+				usb3_a_ss: endpoint {
+					remote-endpoint = <&dwc3_ss>;
+				};
+			};
+		};
+	};
 };
 
 &cpu0 {
@@ -91,6 +117,27 @@
 
 &dwc3 {
 	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+
+			dwc3_hs: endpoint {
+				remote-endpoint = <&usb3_a_hs>;
+			};
+		};
+
+		port@2 {
+			reg = <2>;
+
+			dwc3_ss: endpoint {
+				remote-endpoint = <&usb3_a_ss>;
+			};
+		};
+	};
 };
 
 &ehci0 {
