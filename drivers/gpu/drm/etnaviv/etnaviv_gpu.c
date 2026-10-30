@@ -1902,6 +1902,37 @@ static const struct of_device_id etnaviv_gpu_match[] = {
 };
 MODULE_DEVICE_TABLE(of, etnaviv_gpu_match);
 
+static int etnaviv_gpu_detect(struct etnaviv_gpu *gpu)
+{
+	int ret;
+
+	ret = pm_runtime_resume_and_get(gpu->dev);
+	if (ret < 0)
+		return dev_err_probe(gpu->dev, ret,
+				     "Failed to enable GPU power domain\n");
+
+	ret = etnaviv_gpu_reset_deassert(gpu);
+	if (ret) {
+		dev_err_probe(gpu->dev, ret,
+			      "GPU reset deassert failed\n");
+		goto fail;
+	}
+
+	etnaviv_hw_identify(gpu);
+
+	if (gpu->identity.model == 0) {
+		ret = -ENODEV;
+		dev_err_probe(gpu->dev, ret, "Unknown GPU model\n");
+	}
+
+fail:
+	pm_runtime_mark_last_busy(gpu->dev);
+pm_put:
+	pm_runtime_put_autosuspend(gpu->dev);
+
+	return ret;
+}
+
 static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1977,7 +2008,11 @@ static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 	 */
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, 200);
-	pm_runtime_enable(dev);
+	devm_pm_runtime_enable(dev);
+
+	err = etnaviv_gpu_detect(gpu);
+	if (err < 0)
+		return err;
 
 	err = component_add(dev, &gpu_ops);
 	if (err < 0) {
